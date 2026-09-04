@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "types": ["vite/client", "vitest/globals"],
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+
+    // No "baseUrl": TypeScript 7 removed it. "paths" is resolved relative to
+    // this file instead, which is what CLAUDE.md's two-line snippet meant.
+    "paths": { "@/*": ["./src/*"] }
+  },
+  "include": ["src"]
+}
