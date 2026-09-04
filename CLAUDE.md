@@ -124,6 +124,41 @@ Rules:
   `{ kind: 'node'; id: NodeId } | { kind: 'edge'; id: EdgeId } | null`, never
   two loose optional fields.
 
+## Functions
+
+A component or hook is declared with `function` and exported by name. Anything
+declared *inside* one is a `const` arrow function.
+
+```tsx
+export function MachineGroup({ body, onSelect }: MachineGroupProps) {
+  const select = (): void => {
+    onSelect(body.id)
+  }
+
+  return <circle onClick={select} r={body.radius} />
+}
+```
+
+The split is not cosmetic, and it is the hoisting that decides it.
+
+A `function` declaration is hoisted to the top of its block, so a nested one
+can be *called* before a `const` it closes over has been initialised, and the
+result is a `ReferenceError` from the temporal dead zone at run time, pointing
+at the closure rather than at the ordering mistake that caused it. An arrow
+bound to a `const` cannot be used above its own declaration, so the same
+mistake is a compile error on the line that made it.
+
+The outer declaration is a `function` for the opposite reason: it is what makes
+a component greppable by name, and what React DevTools shows in the tree.
+
+Two things follow:
+
+- **Annotate the return type** unless the body is a single expression. An arrow
+  makes it easy to leave off, and nothing in `strict` requires it.
+- **A helper that closes over nothing belongs outside the component**, as a
+  module-level `function`. If it only reads its arguments it is a `lib/`
+  candidate: test it there rather than rebuild it on every render.
+
 ## Imports
 
 Absolute, through the `@/` alias, which points at `frontend/src/`.
@@ -297,7 +332,8 @@ and every edge shape renders without `undefined` or `NaN` reaching the DOM.
 ## Before calling frontend work done
 
 1. `npm run build` passes — that is the type check, not just the bundle.
-2. No `any`, no `!`, no `../` imports anywhere in the diff.
+2. No `any`, no `!`, no `../` imports anywhere in the diff, and no `function`
+   declared inside a component or hook.
 3. Field names in the diff match README.md exactly.
 4. Any new size or width mapping goes through `@/lib/scales`.
 5. New interactive elements are keyboard-reachable.
