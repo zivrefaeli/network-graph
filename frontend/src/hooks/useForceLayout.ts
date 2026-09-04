@@ -136,7 +136,7 @@ export function useForceLayout(layout: Layout, size: { width: number; height: nu
   }, [simBodies, simLinks, width, height])
 
   /** Absolute canvas position of an address, parent offset included. */
-  function positionOf(addressId: AddressId): Point | null {
+  const positionOf = (addressId: AddressId): Point | null => {
     const place = layout.placement[addressId]
     if (place === undefined) return null
     const simBody = simBodyById.get(place.bodyId)
@@ -149,7 +149,7 @@ export function useForceLayout(layout: Layout, size: { width: number; height: nu
 
   // Client coordinates go through the SVG matrix rather than being used raw,
   // so dragging stays accurate however the viewBox is scaled to the window.
-  function toSvgPoint(event: React.PointerEvent<SVGElement>): { x: number; y: number } {
+  const toSvgPoint = (event: React.PointerEvent<SVGElement>): { x: number; y: number } => {
     const svg = svgRef.current
     const ctm = svg?.getScreenCTM()
     if (svg === null || ctm === null || ctm === undefined) {
@@ -159,7 +159,10 @@ export function useForceLayout(layout: Layout, size: { width: number; height: nu
     return { x: point.x, y: point.y }
   }
 
-  function handleBodyPointerDown(event: React.PointerEvent<SVGGElement>, simBody: SimBody): void {
+  const handleBodyPointerDown = (
+    event: React.PointerEvent<SVGGElement>,
+    simBody: SimBody,
+  ): void => {
     event.stopPropagation()
     event.currentTarget.setPointerCapture(event.pointerId)
     draggedRef.current = false
@@ -174,7 +177,7 @@ export function useForceLayout(layout: Layout, size: { width: number; height: nu
     simRef.current?.alphaTarget(0.3).restart()
   }
 
-  function handlePointerMove(event: React.PointerEvent<SVGSVGElement>): void {
+  const handlePointerMove = (event: React.PointerEvent<SVGSVGElement>): void => {
     const drag = dragRef.current
     if (drag === null || drag.pointerId !== event.pointerId) return
     const point = toSvgPoint(event)
@@ -184,7 +187,7 @@ export function useForceLayout(layout: Layout, size: { width: number; height: nu
     if (travelled > DRAG_SLOP_PX) draggedRef.current = true
   }
 
-  function handlePointerUp(event: React.PointerEvent<SVGSVGElement>): void {
+  const handlePointerUp = (event: React.PointerEvent<SVGSVGElement>): void => {
     const drag = dragRef.current
     if (drag === null || drag.pointerId !== event.pointerId) return
     dragRef.current = null
@@ -193,7 +196,7 @@ export function useForceLayout(layout: Layout, size: { width: number; height: nu
     simRef.current?.alphaTarget(0)
   }
 
-  function releaseBody(simBody: SimBody): void {
+  const releaseBody = (simBody: SimBody): void => {
     simBody.fx = null
     simBody.fy = null
     simRef.current?.alpha(0.6).restart()

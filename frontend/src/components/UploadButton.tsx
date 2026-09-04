@@ -30,7 +30,7 @@ export function UploadButton({ onDocument, canReset, onReset }: UploadButtonProp
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [status, setStatus] = useState<Status>({ kind: 'idle' })
 
-  async function handleChange(event: React.ChangeEvent<HTMLInputElement>): Promise<void> {
+  const handleChange = async (event: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
     const file = event.target.files?.[0]
     // Picking the same file twice in a row fires no change event otherwise.
     event.target.value = ''
@@ -55,7 +55,7 @@ export function UploadButton({ onDocument, canReset, onReset }: UploadButtonProp
     onDocument(outcome.result.document, outcome.filename)
   }
 
-  function handleReset(): void {
+  const handleReset = (): void => {
     setStatus({ kind: 'idle' })
     onReset()
   }

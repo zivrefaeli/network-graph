@@ -15,7 +15,7 @@ export function App() {
 
   // Selection lives here and is passed down; no component holds its own idea
   // of what is selected. A new document invalidates every id in the old one.
-  function loadDocument(next: CaptureDocument): void {
+  const loadDocument = (next: CaptureDocument): void => {
     setDoc(next)
     setSelection(null)
   }

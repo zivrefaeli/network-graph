@@ -36,22 +36,20 @@ export function Graph({ doc, selection, onSelect }: GraphProps) {
 
   const selectedId = selection?.id ?? null
 
-  function select(next: NonNullable<Selection>): void {
+  const select = (next: NonNullable<Selection>): void => {
     // Finishing a drag must not also select what was just moved.
     if (sim.wasDragged()) return
     onSelect(next)
   }
 
-  function sharedBodyProps(simBody: SimBody, x: number, y: number) {
-    return {
-      x,
-      y,
-      pinned: simBody.fx != null,
-      onPointerDown: (event: React.PointerEvent<SVGGElement>) =>
-        sim.handleBodyPointerDown(event, simBody),
-      onDoubleClick: () => sim.releaseBody(simBody),
-    }
-  }
+  const sharedBodyProps = (simBody: SimBody, x: number, y: number) => ({
+    x,
+    y,
+    pinned: simBody.fx != null,
+    onPointerDown: (event: React.PointerEvent<SVGGElement>) =>
+      sim.handleBodyPointerDown(event, simBody),
+    onDoubleClick: () => sim.releaseBody(simBody),
+  })
 
   return (
     <svg
