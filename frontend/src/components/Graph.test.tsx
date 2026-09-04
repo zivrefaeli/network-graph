@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { sampleCapture } from '@/api/mock'
 import { Graph } from '@/components/Graph'
 import type { Selection } from '@/types/graph'
@@ -22,8 +21,7 @@ describe('Graph', () => {
     const { container } = renderGraph()
     const rings = container.querySelectorAll('.machine-body')
     expect(rings).toHaveLength(1)
-    const ring = rings.item(0)
-    const group = ring.parentElement
+    const group = rings.item(0).parentElement
     expect(group?.querySelectorAll('.address')).toHaveLength(2)
   })
 
@@ -44,60 +42,83 @@ describe('Graph', () => {
     expect(container.innerHTML).not.toMatch(/undefined|NaN/)
   })
 
-  it('gives every circle and line a keyboard path and an accessible name', () => {
+  it('leaves nothing on the canvas in the tab order', () => {
+    // The graph is pointer-driven by design; only the panel and the upload
+    // control are keyboard-operable, and those are real buttons.
     const { container } = renderGraph()
-    const interactive = container.querySelectorAll('[role="button"]')
-    // 4 machines (one ring + three single circles) + 2 sub-circles
-    // + 2 standalone addresses + 8 edges.
-    expect(interactive).toHaveLength(16)
-    for (const element of interactive) {
-      expect(element.getAttribute('tabindex')).toBe('0')
-      expect(element.getAttribute('aria-label')).toBeTruthy()
-    }
+    expect(container.querySelectorAll('[tabindex]')).toHaveLength(0)
   })
+})
 
-  it('selects a machine when Enter is pressed on it', async () => {
-    const user = userEvent.setup()
-    const { onSelect } = renderGraph()
-    const ring = screen.getByLabelText(/workstation-01, machine holding 2 addresses/)
-    ring.focus()
-    await user.keyboard('{Enter}')
+describe('selecting with a pointer', () => {
+  it('reports the machine, not the address, for a click inside the ring', () => {
+    const { container, onSelect } = renderGraph()
+    const ring = container.querySelector('.machine-body')
+    if (ring === null) throw new Error('no expanded machine')
+    fireEvent.click(ring)
     expect(onSelect).toHaveBeenCalledWith({ kind: 'machine', id: 'mac:00:1a:2b:3c:4d:5e' })
   })
 
-  it('selects a sub-circle without also selecting the machine behind it', async () => {
-    const user = userEvent.setup()
-    const { onSelect } = renderGraph()
-    const child = screen.getByLabelText(/^10\.8\.0\.6, host/)
-    child.focus()
-    await user.keyboard(' ')
-    expect(onSelect).toHaveBeenCalledTimes(1)
-    expect(onSelect).toHaveBeenCalledWith({ kind: 'node', id: 'ip:10.8.0.6' })
+  it('makes sub-circles inert, so a press on one reaches the machine', () => {
+    const { container } = renderGraph()
+    const ring = container.querySelector('.machine-body')
+    const children = ring?.parentElement?.querySelectorAll('.address')
+    expect(children).toHaveLength(2)
+    for (const child of children ?? []) {
+      // No handler of its own, and pointer-events: none in the stylesheet, so
+      // the click falls through to the ring underneath.
+      expect(child.classList.contains('address-inert')).toBe(true)
+      expect(child.getAttribute('role')).toBeNull()
+    }
   })
 
-  it('selects a conversation from the keyboard', async () => {
-    const user = userEvent.setup()
+  it('still selects a standalone address, which is a body in its own right', () => {
     const { onSelect } = renderGraph()
-    const edge = screen.getByLabelText(/Conversation between 192\.168\.1\.50 and 192\.168\.1\.77/)
-    edge.focus()
-    await user.keyboard('{Enter}')
+    const circle = screen.getByLabelText(/^93\.184\.216\.34, external/)
+    const group = circle.parentElement
+    if (group === null) throw new Error('no standalone address group')
+    fireEvent.click(group)
+    expect(onSelect).toHaveBeenCalledWith({ kind: 'node', id: 'ip:93.184.216.34' })
+  })
+
+  it('selects a single-address machine as the machine', () => {
+    const { onSelect } = renderGraph()
+    const circle = screen.getByLabelText(/^gateway, router/)
+    const group = circle.parentElement
+    if (group === null) throw new Error('no gateway group')
+    fireEvent.click(group)
+    expect(onSelect).toHaveBeenCalledWith({ kind: 'machine', id: 'mac:c8:d7:19:04:aa:31' })
+  })
+
+  it('selects a conversation from its fat hit line', () => {
+    const { container, onSelect } = renderGraph()
+    const scan = container.querySelector('.edge-scan .edge-hit')
+    if (scan === null) throw new Error('no scan edge')
+    fireEvent.click(scan)
     expect(onSelect).toHaveBeenCalledWith({
       kind: 'edge',
       id: 'edge_ip-192.168.1.50_ip-192.168.1.77',
     })
   })
 
-  it('selects the machine, not the hidden child, for a single-address machine', async () => {
-    const user = userEvent.setup()
-    const { onSelect } = renderGraph()
-    const circle = screen.getByLabelText(/^gateway, router/)
-    circle.focus()
-    await user.keyboard('{Enter}')
-    expect(onSelect).toHaveBeenCalledWith({ kind: 'machine', id: 'mac:c8:d7:19:04:aa:31' })
+  it('clears the selection on a click in empty space', () => {
+    const { container, onSelect } = renderGraph({ kind: 'machine', id: 'mac:00:1a:2b:3c:4d:5e' })
+    const background = container.querySelector('.graph-bg')
+    if (background === null) throw new Error('no background')
+    fireEvent.click(background)
+    expect(onSelect).toHaveBeenCalledWith(null)
   })
 
-  it('marks the selected element as pressed', () => {
+  it('draws a halo on the selected machine', () => {
     const { container } = renderGraph({ kind: 'machine', id: 'mac:00:1a:2b:3c:4d:5e' })
-    expect(container.querySelectorAll('[aria-pressed="true"]')).toHaveLength(1)
+    expect(container.querySelectorAll('.machine-halo')).toHaveLength(1)
+  })
+
+  it('draws a halo on a sub-circle selected from the panel', () => {
+    // Not selectable on the canvas, but still highlighted there once the panel
+    // picks it -- otherwise the link would point at nothing visible.
+    const { container } = renderGraph({ kind: 'node', id: 'ip:10.8.0.6' })
+    const ring = container.querySelector('.machine-body')
+    expect(ring?.parentElement?.querySelectorAll('.address-halo')).toHaveLength(1)
   })
 })

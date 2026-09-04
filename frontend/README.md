@@ -59,6 +59,34 @@ Ring radius comes from the chord between adjacent children — `2R·sin(π/n)` �
 solved for the pair that needs the most room, so no two neighbours touch and
 everything fits inside the container.
 
+## Interaction
+
+The canvas is driven by pointer only — mouse, trackpad, pen and touch all go
+through the same `pointerdown`/`pointermove`/`pointerup` path, so a finger drags
+a machine exactly as a mouse does. Nothing on the canvas is in the tab order.
+
+| Gesture | What it does |
+| --- | --- |
+| Press and move a machine | Drags it. Children and their lines follow. |
+| Release | It stays where it was dropped; a dashed ring says so. |
+| Double-click / double-tap | Hands it back to the layout. |
+| Click a machine | Selects the machine. |
+| Click a line | Selects that conversation. |
+| Click empty canvas | Clears the selection. |
+
+**Sub-circles are inert.** An address inside a machine takes no pointer events
+at all, so a press anywhere within the ring — including on top of a child —
+reaches the machine and drags it. Addresses are selected from the panel, which
+lists them and links to each; the canvas still draws a halo on whichever one is
+selected. An address with no machine is a body in its own right, so it is
+clickable: it is the only thing there to click.
+
+The pointer path itself: `getScreenCTM().inverse()` rather than raw
+`clientX`/`clientY`, so a drag stays under the finger however the viewBox is
+scaled to the window; `setPointerCapture` so a fast drag that leaves the circle
+keeps tracking; `touch-action: none` and `user-select: none` on the SVG so a
+drag never turns into a page scroll or a text selection.
+
 ## Rules worth knowing before editing
 
 These are in [../CLAUDE.md](../CLAUDE.md) in full. The short version:
@@ -77,8 +105,6 @@ These are in [../CLAUDE.md](../CLAUDE.md) in full. The short version:
 - **A scan is flagged regardless of line width**, because it is nearly free in
   bytes and would otherwise be the thinnest line on the canvas.
 - **Wire field names stay as the schema spells them.** No camelCase layer.
-- **Every clickable SVG element is keyboard-reachable** — `tabIndex`, `role`, an
-  accessible name, Enter/Space.
 
 ## Layout
 
@@ -104,6 +130,11 @@ Recorded rather than papered over:
   removed `baseUrl` (`error TS5102`), and `paths` is now resolved relative to
   the `tsconfig.json` that declares it. `tsconfig.json` carries a comment where
   the `baseUrl` line would have gone.
+- `CLAUDE.md` requires a keyboard path on every clickable SVG element. That was
+  built and then removed on request: this graph is pointer-driven, and nothing
+  on the canvas is focusable. The panel and the upload control are real
+  buttons and remain keyboard-operable. `CLAUDE.md` still says otherwise and
+  needs updating.
 - Nothing in the schema had to bend to render. The one place it is thin is
   `machine.properties.vlan_id`, which is nullable in practice — an untagged
   segment has no VLAN — but `README.md` shows only the tagged case.

@@ -59,7 +59,6 @@ export function Graph({ doc, selection, onSelect }: GraphProps) {
       className="graph"
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
       preserveAspectRatio="xMidYMid meet"
-      role="group"
       aria-label={`Network graph: ${doc.machines.length} machines, ${doc.nodes.length} addresses, ${doc.edges.length} conversations`}
       onPointerMove={sim.handlePointerMove}
       onPointerUp={sim.handlePointerUp}
@@ -104,12 +103,13 @@ export function Graph({ doc, selection, onSelect }: GraphProps) {
                 body={body}
                 selectedId={selectedId}
                 onSelectMachine={(id) => select({ kind: 'machine', id })}
-                onSelectNode={(id) => select({ kind: 'node', id })}
                 {...shared}
               />
             )
           }
 
+          // An address with no machine is the body itself, so it is what a
+          // pointer lands on. Only sub-circles inside a machine are inert.
           return (
             <g
               key={body.id}
@@ -117,13 +117,13 @@ export function Graph({ doc, selection, onSelect }: GraphProps) {
               transform={`translate(${shared.x},${shared.y})`}
               onPointerDown={shared.onPointerDown}
               onDoubleClick={shared.onDoubleClick}
+              onClick={() => select({ kind: 'node', id: body.node.id })}
             >
               <AddressCircle
                 node={body.node}
                 radius={body.radius}
                 selected={selectedId === body.node.id}
                 labelGap={17}
-                onActivate={() => select({ kind: 'node', id: body.node.id })}
               />
               {shared.pinned && <circle className="node-pin" r={body.radius + 4} />}
             </g>

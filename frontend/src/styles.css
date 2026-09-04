@@ -83,7 +83,14 @@ code {
   width: 100%;
   height: 100%;
   display: block;
-  touch-action: none; /* let pointer drags through instead of scrolling */
+  /* Hand every touch to the pointer handlers instead of scrolling or
+     pinch-zooming the page: dragging a circle is what a finger is for here. */
+  touch-action: none;
+  /* A drag that grazes a label must not start selecting text, and a long
+     press must not raise the iOS callout. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .graph-bg {
@@ -92,7 +99,8 @@ code {
 
 .edge-hit {
   stroke: transparent;
-  stroke-width: 16;
+  /* Wide enough for a fingertip, not just a mouse pointer. */
+  stroke-width: 24;
   cursor: pointer;
 }
 
@@ -163,7 +171,6 @@ code {
 .address-body {
   stroke: rgba(15, 20, 25, 0.85);
   stroke-width: 2;
-  cursor: pointer;
 }
 
 .address-host .address-body {
@@ -582,27 +589,22 @@ code {
   color: var(--text-dim);
 }
 
-/* ---------- keyboard focus ---------- */
+/* ---------- pointer targets ---------- */
 
-/* Every clickable SVG element is in the tab order, so every one of them needs
-   a visible focus ring. */
-.address:focus-visible,
-.machine-body:focus-visible,
-.edge:focus-visible {
-  outline: none;
+/* A sub-circle takes no pointer events, so a press anywhere inside the ring --
+   including on top of a child -- reaches the machine and drags it. Addresses
+   are read from the panel, not picked off the canvas. */
+.address-inert {
+  pointer-events: none;
 }
 
-.address:focus-visible .address-body,
-.machine-body:focus-visible,
-.edge:focus-visible .edge-line {
-  stroke: var(--accent);
-  stroke-width: 3;
+/* Everything on the canvas is driven by pointer, so the whole machine group
+   wears the grab cursor rather than each circle claiming its own. */
+.machine * {
+  cursor: inherit;
 }
 
-.edge:focus-visible .edge-hit {
-  stroke: rgba(226, 232, 239, 0.12);
-}
-
+/* Panel controls are real buttons and keep their native focus ring. */
 .link-item:focus-visible,
 .upload-errors summary:focus-visible,
 .ghost-button:focus-visible {

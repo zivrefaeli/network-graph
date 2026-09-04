@@ -2,7 +2,7 @@ import { AddressCircle } from '@/components/AddressCircle'
 import { formatCount } from '@/lib/format'
 import { machinePackets } from '@/lib/scales'
 import type { Body } from '@/lib/layout'
-import type { AddressId, Machine, MachineId } from '@/types/graph'
+import type { MachineId } from '@/types/graph'
 
 interface MachineGroupProps {
   body: Extract<Body, { kind: 'machine' }>
@@ -11,16 +11,8 @@ interface MachineGroupProps {
   pinned: boolean
   selectedId: string | null
   onSelectMachine: (id: MachineId) => void
-  onSelectNode: (id: AddressId) => void
   onPointerDown: (event: React.PointerEvent<SVGGElement>) => void
   onDoubleClick: () => void
-}
-
-function machineLabel(machine: Machine, expanded: boolean): string {
-  const packets = formatCount(machinePackets(machine))
-  return expanded
-    ? `${machine.label}, machine holding ${machine.node_ids.length} addresses, ${packets} packets`
-    : `${machine.label}, machine, ${packets} packets`
 }
 
 /**
@@ -32,6 +24,10 @@ function machineLabel(machine: Machine, expanded: boolean): string {
  * address, and edges attach to those rather than to the ring. The ring is
  * sized to fit its children, so it does *not* encode volume, which is why it
  * is drawn hollow and said out loud in the legend and the panel.
+ *
+ * The machine is the only thing on the canvas a pointer can hit here: the
+ * sub-circles are inert, so a press anywhere inside the ring selects or drags
+ * the machine. Individual addresses are reached from the panel.
  */
 export function MachineGroup({
   body,
@@ -40,7 +36,6 @@ export function MachineGroup({
   pinned,
   selectedId,
   onSelectMachine,
-  onSelectNode,
   onPointerDown,
   onDoubleClick,
 }: MachineGroupProps) {
@@ -50,21 +45,15 @@ export function MachineGroup({
   const groupProps = {
     className: `machine${pinned ? ' machine-pinned' : ''}`,
     transform: `translate(${x},${y})`,
+    'aria-label': `${machine.label}, machine, ${formatCount(machinePackets(machine))} packets`,
     onPointerDown,
     onDoubleClick,
-  }
-
-  function handleKeyDown(event: React.KeyboardEvent<SVGGElement>): void {
-    if (event.key !== 'Enter' && event.key !== ' ') return
-    event.preventDefault()
-    onSelectMachine(machine.id)
+    onClick: () => onSelectMachine(machine.id),
   }
 
   if (!expanded) {
     const only = children[0]
     if (only === undefined) return null
-    // Selecting the invisible child would be surprising when no sub-circle is
-    // drawn, so the click lands on the machine and the panel links inward.
     return (
       <g {...groupProps}>
         {selected && <circle className="address-halo" r={radius + 7} />}
@@ -74,7 +63,6 @@ export function MachineGroup({
           selected={selected}
           labelGap={17}
           label={machine.label}
-          onActivate={() => onSelectMachine(machine.id)}
         />
         {pinned && <circle className="node-pin" r={radius + 4} />}
       </g>
@@ -84,16 +72,9 @@ export function MachineGroup({
   return (
     <g {...groupProps}>
       {selected && <circle className="machine-halo" r={radius + 7} />}
-      <circle
-        className="machine-body"
-        r={radius}
-        role="button"
-        tabIndex={0}
-        aria-pressed={selected}
-        aria-label={machineLabel(machine, true)}
-        onClick={() => onSelectMachine(machine.id)}
-        onKeyDown={handleKeyDown}
-      />
+      {/* The ring spans the whole body, so it is what a pointer lands on --
+          including through the inert sub-circles drawn over it. */}
+      <circle className="machine-body" r={radius} />
       <text className="machine-label" y={-radius - 9}>
         {machine.label}
       </text>
@@ -104,7 +85,7 @@ export function MachineGroup({
             node={child.node}
             radius={child.radius}
             selected={selectedId === child.node.id}
-            onActivate={() => onSelectNode(child.node.id)}
+            inert
           />
         </g>
       ))}

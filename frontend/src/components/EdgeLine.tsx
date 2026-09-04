@@ -31,22 +31,10 @@ export function EdgeLine({
 
   const ends = { x1: from.x, y1: from.y, x2: to.x, y2: to.y }
 
-  function handleKeyDown(event: React.KeyboardEvent<SVGGElement>): void {
-    if (event.key !== 'Enter' && event.key !== ' ') return
-    event.preventDefault()
-    onActivate()
-  }
-
   return (
-    <g
-      className={classes.join(' ')}
-      role="button"
-      tabIndex={0}
-      aria-pressed={selected}
-      aria-label={label}
-      onKeyDown={handleKeyDown}
-    >
-      {/* A two-pixel line is unclickable, so a fat invisible one takes the hits. */}
+    <g className={classes.join(' ')} aria-label={label}>
+      {/* A two-pixel line is unclickable, so a fat invisible one takes the
+          hits -- and gives a finger something to land on. */}
       <line className="edge-hit" {...ends} onClick={onActivate} />
       <line
         className="edge-line"
