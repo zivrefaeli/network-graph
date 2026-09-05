@@ -88,31 +88,31 @@ describe('DetailsPanel', () => {
   })
 
   it('explains why an address past the gateway has no machine', () => {
-    const text = renderSelection({ kind: 'node', id: 'ip:93.184.216.34' })
+    const text = renderSelection({ kind: 'node', id: 'ip:96.7.128.175' })
     expect(text).toMatch(/every frame for this address carried the router MAC/)
   })
 
   it('shows the binding basis beside an inferred machine membership', () => {
-    const text = renderSelection({ kind: 'node', id: 'ip:192.168.1.50' })
+    const text = renderSelection({ kind: 'node', id: 'ip:10.20.30.50' })
     expect(text).toContain('arp_reply')
     expect(text).toContain('98%')
   })
 
   it('calls the scan a scan', () => {
-    const text = renderSelection({ kind: 'edge', id: 'edge_ip-192.168.1.50_ip-192.168.1.77' })
+    const text = renderSelection({ kind: 'edge', id: 'edge_ip-10.20.30.50_ip-10.20.30.77' })
     expect(text).toMatch(/That is a scan, not a conversation/)
     expect(text).toContain('1,024')
   })
 
   it('shows both directions rather than one merged total', () => {
-    const text = renderSelection({ kind: 'edge', id: 'edge_ip-192.168.1.20_ip-192.168.1.50' })
+    const text = renderSelection({ kind: 'edge', id: 'edge_ip-10.20.30.20_ip-10.20.30.50' })
     // 24,180 forward and 9,940 reverse: the asymmetry is the point.
     expect(text).toContain('24,180')
     expect(text).toContain('9,940')
   })
 
   it('reports a dangling reference instead of crashing on it', () => {
-    const text = renderSelection({ kind: 'node', id: 'ip:203.0.113.9' })
+    const text = renderSelection({ kind: 'node', id: 'ip:23.215.0.136' })
     expect(text).toMatch(/referenced but is not in this document/)
   })
 })

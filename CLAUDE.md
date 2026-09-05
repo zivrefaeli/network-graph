@@ -29,8 +29,8 @@ The replacement:
 | Kind | Id | What it is |
 | --- | --- | --- |
 | Machine | `mac:00:1a:2b:3c:4d:5e` | One physical host on the local segment. The outer circle. |
-| Interface | `ip:192.168.1.50` | One address, belonging to a machine. A small circle inside it. |
-| Remote | `ip:93.184.216.34` | An address past the gateway, with no machine of its own. A plain circle. |
+| Interface | `ip:10.20.30.50` | One address, belonging to a machine. A small circle inside it. |
+| Remote | `ip:96.7.128.175` | An address past the gateway, with no machine of its own. A plain circle. |
 
 **Edges always terminate on an address, never on a machine.** This is the
 load-bearing rule, and it is what stops the gateway becoming a false hub: the
@@ -246,7 +246,7 @@ export interface Counters {
 }
 ```
 
-Template-literal `NodeId` is not decoration: it stops a bare `'192.168.1.50'`
+Template-literal `NodeId` is not decoration: it stops a bare `'10.20.30.50'`
 from being passed where a namespaced id is required.
 
 Fields the schema marks as inferred (`hostnames`, `vendor`, `is_local`,

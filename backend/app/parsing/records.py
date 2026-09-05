@@ -75,7 +75,7 @@ class PacketRecord:
     # about who holds an address; a plain source MAC is only circumstantial.
     #
     # arp_sender_* is populated for *any* ARP opcode, because a request's
-    # "tell 192.168.1.20" is just as good a statement that the address is on
+    # "tell 10.20.30.20" is just as good a statement that the address is on
     # this segment. arp_reply_* is opcode 2 only, because only an unprompted
     # reply is strong enough to earn the arp_reply basis.
     arp_sender_ip: str | None = None
@@ -84,6 +84,12 @@ class PacketRecord:
     arp_reply_mac: str | None = None
     ndp_advertised_ip: str | None = None
     ndp_advertised_mac: str | None = None
+    # A neighbour solicitation's target. Presence evidence only, never a
+    # binding: the link-layer option in a solicitation is the *sender's*
+    # address, not the target's. It matters because a solicitation is only ever
+    # sent for an on-link target, which is how a v6 prefix is known to be on
+    # this segment at all.
+    ndp_solicited_ip: str | None = None
     dhcp_assigned_ip: str | None = None
     dhcp_assigned_mac: str | None = None
 

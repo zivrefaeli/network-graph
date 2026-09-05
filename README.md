@@ -16,7 +16,7 @@ These hold across every document the tool emits:
 - **There are two kinds of graph element.** A **machine** is a physical host,
   keyed by the MAC it was seen at. A **node** is a single address, keyed by that
   address. Nodes are what edges connect; machines only group them.
-- **IDs are namespaced** — `mac:00:1a:2b:3c:4d:5e`, `ip:192.168.1.50`. MACs are
+- **IDs are namespaced** — `mac:00:1a:2b:3c:4d:5e`, `ip:10.20.30.50`. MACs are
   lowercase and colon-separated; IPv6 is written in RFC 5952 canonical form.
 - **A machine is keyed by MAC *and* VLAN.** The same MAC seen on two VLANs is
   two machines, because it is two attachments to two networks.
@@ -82,7 +82,7 @@ conversation endpoint.
   "capture_id": "cap_7f3a9c",
   "first_seen": "2026-09-04T17:30:01.482913Z",
   "last_seen": "2026-09-04T17:37:58.104772Z",
-  "node_ids": ["ip:192.168.1.50", "ip:10.8.0.6"],
+  "node_ids": ["ip:10.20.30.50", "ip:10.10.0.6"],
   "properties": {
     "mac_address": "00:1a:2b:3c:4d:5e",
     "mac_is_randomized": false,
@@ -122,15 +122,15 @@ One address. This is what an edge connects to, and what a sub-circle draws.
 
 ```json
 {
-  "id": "ip:192.168.1.50",
-  "label": "192.168.1.50",
+  "id": "ip:10.20.30.50",
+  "label": "10.20.30.50",
   "node_type": "host",
   "machine_id": "mac:00:1a:2b:3c:4d:5e",
   "capture_id": "cap_7f3a9c",
   "first_seen": "2026-09-04T17:30:01.482913Z",
   "last_seen": "2026-09-04T17:37:58.104772Z",
   "properties": {
-    "address": "192.168.1.50",
+    "address": "10.20.30.50",
     "version": 4,
     "scope": "private",
     "is_local": true,
@@ -171,10 +171,10 @@ One address. This is what an edge connects to, and what a sub-circle draws.
 
 ```json
 {
-  "id": "edge_ip-192.168.1.50_ip-93.184.216.34",
+  "id": "edge_ip-10.20.30.50_ip-96.7.128.175",
   "layer": "l3",
   "directed": false,
-  "endpoints": ["ip:192.168.1.50", "ip:93.184.216.34"],
+  "endpoints": ["ip:10.20.30.50", "ip:96.7.128.175"],
   "capture_id": "cap_7f3a9c",
   "first_seen": "2026-09-04T17:30:04.221904Z",
   "last_seen": "2026-09-04T17:37:41.339820Z",

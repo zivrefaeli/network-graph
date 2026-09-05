@@ -111,13 +111,41 @@ internet to the gateway — the exact bug the L3 design exists to avoid. So:
   Identifying it *does* look at destination MACs, legitimately — "which MAC is
   the next hop" is precisely what a destination MAC answers.
 - `source_mac` evidence is accepted only for an address seen in ARP/NDP on this
-  segment, or one that is private/link-local and arrived from a MAC that is not
-  a router.
+  segment, one inside a learned on-link prefix, or one that is
+  private/link-local and arrived from a MAC that is not a router.
 - ARP and NDP do not cross a router, so anything named in one is on-segment by
   construction. That is the strongest locality signal and it does not depend on
-  address ranges at all.
+  address ranges at all. A neighbour solicitation counts: it is only ever sent
+  for an on-link target. It is *presence* evidence and never a binding, because
+  the link-layer option in a solicitation carries the sender's address, not the
+  target's.
+- A link-local address is accepted from a router MAC as well. Link-local is
+  never forwarded, so the L2 sender is the L3 source — otherwise the gateway is
+  the one node on the segment left holding none of its own addresses.
 
-`test_a_public_address_never_binds_to_the_router` is the regression test.
+**`is_private` is not a locality test under IPv6.** There is no NAT in IPv6, so
+a host's ordinary address is a *global unicast* address. Treating "not RFC 1918"
+as "off-segment" marks every v6 host on the segment remote, and the rule above
+then reads each one as a gateway — sourcing frames for an off-segment address is
+exactly what a router does. The fix is on-link prefixes: SLAAC fixes the prefix
+at /64 (RFC 4291), so the /64 of any address neighbour discovery named is
+on-link too, which generalises the evidence to the neighbours whose own
+addresses never appeared in a solicitation. In a short capture that is most of
+them.
+
+That inference is deliberately narrow. Router Advertisement prefix options are
+the authoritative source and are not read yet: a capture too short to contain an
+RA is the common case, and the /64 rule covers it. Adding them would tighten the
+basis, not change it.
+
+`test_a_public_address_never_binds_to_the_router` and
+`TestIPv6Locality::test_a_v6_host_talking_to_the_internet_is_not_a_router` are
+the regression tests.
+
+**A VLAN id of 0 is not a VLAN.** 802.1Q with VID 0 is a priority tag: it
+asserts a priority and claims no VLAN membership. Since `(MAC, VLAN)` is the
+machine key, reading it as VLAN 0 splits one host into two machines — one per
+tag — which is the address fragmentation the machine model exists to prevent.
 
 **The store is a dictionary, and says so.** `GET /captures/{id}` needs
 somewhere to read from. It is bounded (documents are large), thread-safe

@@ -74,11 +74,11 @@ describe('selecting with a pointer', () => {
 
   it('still selects a standalone address, which is a body in its own right', () => {
     const { onSelect } = renderGraph()
-    const circle = screen.getByLabelText(/^93\.184\.216\.34, external/)
+    const circle = screen.getByLabelText(/^96\.7\.128\.175, external/)
     const group = circle.parentElement
     if (group === null) throw new Error('no standalone address group')
     fireEvent.click(group)
-    expect(onSelect).toHaveBeenCalledWith({ kind: 'node', id: 'ip:93.184.216.34' })
+    expect(onSelect).toHaveBeenCalledWith({ kind: 'node', id: 'ip:96.7.128.175' })
   })
 
   it('selects a single-address machine as the machine', () => {
@@ -97,7 +97,7 @@ describe('selecting with a pointer', () => {
     fireEvent.click(scan)
     expect(onSelect).toHaveBeenCalledWith({
       kind: 'edge',
-      id: 'edge_ip-192.168.1.50_ip-192.168.1.77',
+      id: 'edge_ip-10.20.30.50_ip-10.20.30.77',
     })
   })
 
@@ -117,7 +117,7 @@ describe('selecting with a pointer', () => {
   it('draws a halo on a sub-circle selected from the panel', () => {
     // Not selectable on the canvas, but still highlighted there once the panel
     // picks it -- otherwise the link would point at nothing visible.
-    const { container } = renderGraph({ kind: 'node', id: 'ip:10.8.0.6' })
+    const { container } = renderGraph({ kind: 'node', id: 'ip:10.10.0.6' })
     const ring = container.querySelector('.machine-body')
     expect(ring?.parentElement?.querySelectorAll('.address-halo')).toHaveLength(1)
   })

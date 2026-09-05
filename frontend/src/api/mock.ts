@@ -45,7 +45,7 @@ export const sampleCapture: CaptureDocument = {
       capture_id: CAPTURE_ID,
       first_seen: '2026-09-04T17:30:01.482913Z',
       last_seen: '2026-09-04T17:37:58.104772Z',
-      node_ids: ['ip:192.168.1.50', 'ip:10.8.0.6'],
+      node_ids: ['ip:10.20.30.50', 'ip:10.10.0.6'],
       properties: {
         mac_address: '00:1a:2b:3c:4d:5e',
         mac_is_randomized: false,
@@ -74,7 +74,7 @@ export const sampleCapture: CaptureDocument = {
       capture_id: CAPTURE_ID,
       first_seen: '2026-09-04T17:30:00.104882Z',
       last_seen: '2026-09-04T17:37:59.918204Z',
-      node_ids: ['ip:192.168.1.1'],
+      node_ids: ['ip:10.20.30.1'],
       properties: {
         mac_address: 'c8:d7:19:04:aa:31',
         mac_is_randomized: false,
@@ -103,7 +103,7 @@ export const sampleCapture: CaptureDocument = {
       capture_id: CAPTURE_ID,
       first_seen: '2026-09-04T17:30:03.771204Z',
       last_seen: '2026-09-04T17:37:57.220884Z',
-      node_ids: ['ip:192.168.1.20'],
+      node_ids: ['ip:10.20.30.20'],
       properties: {
         mac_address: '00:11:32:8a:c4:7d',
         mac_is_randomized: false,
@@ -132,7 +132,7 @@ export const sampleCapture: CaptureDocument = {
       capture_id: CAPTURE_ID,
       first_seen: '2026-09-04T17:31:12.338001Z',
       last_seen: '2026-09-04T17:37:44.019663Z',
-      node_ids: ['ip:192.168.1.77'],
+      node_ids: ['ip:10.20.30.77'],
       properties: {
         // Locally-administered bit set on the first octet, so this MAC
         // identifies one association rather than a device. No OUI, no vendor.
@@ -157,15 +157,15 @@ export const sampleCapture: CaptureDocument = {
 
   nodes: [
     {
-      id: 'ip:192.168.1.50',
-      label: '192.168.1.50',
+      id: 'ip:10.20.30.50',
+      label: '10.20.30.50',
       node_type: 'host',
       machine_id: 'mac:00:1a:2b:3c:4d:5e',
       capture_id: CAPTURE_ID,
       first_seen: '2026-09-04T17:30:01.482913Z',
       last_seen: '2026-09-04T17:37:58.104772Z',
       properties: {
-        address: '192.168.1.50',
+        address: '10.20.30.50',
         version: 4,
         scope: 'private',
         is_local: true,
@@ -195,15 +195,15 @@ export const sampleCapture: CaptureDocument = {
     {
       // Same physical machine, reached over the tunnel. Bound by source MAC:
       // the tunnelled frames still leave the same NIC.
-      id: 'ip:10.8.0.6',
-      label: '10.8.0.6',
+      id: 'ip:10.10.0.6',
+      label: '10.10.0.6',
       node_type: 'host',
       machine_id: 'mac:00:1a:2b:3c:4d:5e',
       capture_id: CAPTURE_ID,
       first_seen: '2026-09-04T17:31:40.229118Z',
       last_seen: '2026-09-04T17:37:50.660402Z',
       properties: {
-        address: '10.8.0.6',
+        address: '10.10.0.6',
         version: 4,
         scope: 'private',
         is_local: true,
@@ -231,15 +231,15 @@ export const sampleCapture: CaptureDocument = {
     },
 
     {
-      id: 'ip:192.168.1.1',
-      label: '192.168.1.1',
+      id: 'ip:10.20.30.1',
+      label: '10.20.30.1',
       node_type: 'router',
       machine_id: 'mac:c8:d7:19:04:aa:31',
       capture_id: CAPTURE_ID,
       first_seen: '2026-09-04T17:30:00.104882Z',
       last_seen: '2026-09-04T17:37:59.918204Z',
       properties: {
-        address: '192.168.1.1',
+        address: '10.20.30.1',
         version: 4,
         scope: 'private',
         is_local: true,
@@ -267,15 +267,15 @@ export const sampleCapture: CaptureDocument = {
     },
 
     {
-      id: 'ip:192.168.1.20',
-      label: '192.168.1.20',
+      id: 'ip:10.20.30.20',
+      label: '10.20.30.20',
       node_type: 'host',
       machine_id: 'mac:00:11:32:8a:c4:7d',
       capture_id: CAPTURE_ID,
       first_seen: '2026-09-04T17:30:03.771204Z',
       last_seen: '2026-09-04T17:37:57.220884Z',
       properties: {
-        address: '192.168.1.20',
+        address: '10.20.30.20',
         version: 4,
         scope: 'private',
         is_local: true,
@@ -303,15 +303,15 @@ export const sampleCapture: CaptureDocument = {
     },
 
     {
-      id: 'ip:192.168.1.77',
-      label: '192.168.1.77',
+      id: 'ip:10.20.30.77',
+      label: '10.20.30.77',
       node_type: 'host',
       machine_id: 'mac:6a:3f:11:9d:02:c8',
       capture_id: CAPTURE_ID,
       first_seen: '2026-09-04T17:31:12.338001Z',
       last_seen: '2026-09-04T17:37:44.019663Z',
       properties: {
-        address: '192.168.1.77',
+        address: '10.20.30.77',
         version: 4,
         scope: 'private',
         is_local: true,
@@ -341,15 +341,15 @@ export const sampleCapture: CaptureDocument = {
     {
       // The far end of the tunnel. No machine: it is past the gateway, so every
       // frame carrying it had the router MAC and there is nothing to bind to.
-      id: 'ip:10.8.0.1',
-      label: '10.8.0.1',
+      id: 'ip:10.10.0.1',
+      label: '10.10.0.1',
       node_type: 'external',
       machine_id: null,
       capture_id: CAPTURE_ID,
       first_seen: '2026-09-04T17:31:40.229118Z',
       last_seen: '2026-09-04T17:37:50.660402Z',
       properties: {
-        address: '10.8.0.1',
+        address: '10.10.0.1',
         version: 4,
         scope: 'private',
         is_local: false,
@@ -369,15 +369,15 @@ export const sampleCapture: CaptureDocument = {
     },
 
     {
-      id: 'ip:93.184.216.34',
-      label: '93.184.216.34',
+      id: 'ip:96.7.128.175',
+      label: '96.7.128.175',
       node_type: 'external',
       machine_id: null,
       capture_id: CAPTURE_ID,
       first_seen: '2026-09-04T17:30:04.221904Z',
       last_seen: '2026-09-04T17:37:41.339820Z',
       properties: {
-        address: '93.184.216.34',
+        address: '96.7.128.175',
         version: 4,
         scope: 'public',
         is_local: false,
@@ -402,10 +402,10 @@ export const sampleCapture: CaptureDocument = {
 
   edges: [
     {
-      id: 'edge_ip-192.168.1.1_ip-192.168.1.50',
+      id: 'edge_ip-10.20.30.1_ip-10.20.30.50',
       layer: 'l3',
       directed: false,
-      endpoints: ['ip:192.168.1.1', 'ip:192.168.1.50'],
+      endpoints: ['ip:10.20.30.1', 'ip:10.20.30.50'],
       capture_id: CAPTURE_ID,
       first_seen: '2026-09-04T17:30:01.482913Z',
       last_seen: '2026-09-04T17:37:58.104772Z',
@@ -429,10 +429,10 @@ export const sampleCapture: CaptureDocument = {
     },
 
     {
-      id: 'edge_ip-192.168.1.20_ip-192.168.1.50',
+      id: 'edge_ip-10.20.30.20_ip-10.20.30.50',
       layer: 'l3',
       directed: false,
-      endpoints: ['ip:192.168.1.20', 'ip:192.168.1.50'],
+      endpoints: ['ip:10.20.30.20', 'ip:10.20.30.50'],
       capture_id: CAPTURE_ID,
       first_seen: '2026-09-04T17:30:03.771204Z',
       last_seen: '2026-09-04T17:37:57.220884Z',
@@ -455,10 +455,10 @@ export const sampleCapture: CaptureDocument = {
     },
 
     {
-      id: 'edge_ip-192.168.1.50_ip-93.184.216.34',
+      id: 'edge_ip-10.20.30.50_ip-96.7.128.175',
       layer: 'l3',
       directed: false,
-      endpoints: ['ip:192.168.1.50', 'ip:93.184.216.34'],
+      endpoints: ['ip:10.20.30.50', 'ip:96.7.128.175'],
       capture_id: CAPTURE_ID,
       first_seen: '2026-09-04T17:30:04.221904Z',
       last_seen: '2026-09-04T17:37:41.339820Z',
@@ -483,10 +483,10 @@ export const sampleCapture: CaptureDocument = {
     {
       // The shape the README calls out as worth surfacing: a thousand SYNs,
       // not one SYN/ACK, no payload at all. Tiny on bytes, loud on intent.
-      id: 'edge_ip-192.168.1.50_ip-192.168.1.77',
+      id: 'edge_ip-10.20.30.50_ip-10.20.30.77',
       layer: 'l3',
       directed: false,
-      endpoints: ['ip:192.168.1.50', 'ip:192.168.1.77'],
+      endpoints: ['ip:10.20.30.50', 'ip:10.20.30.77'],
       capture_id: CAPTURE_ID,
       first_seen: '2026-09-04T17:35:02.110577Z',
       last_seen: '2026-09-04T17:35:19.664215Z',
@@ -512,10 +512,10 @@ export const sampleCapture: CaptureDocument = {
 
     {
       // Sub-circle two, conversation one: the tunnel itself.
-      id: 'edge_ip-10.8.0.1_ip-10.8.0.6',
+      id: 'edge_ip-10.10.0.1_ip-10.10.0.6',
       layer: 'l3',
       directed: false,
-      endpoints: ['ip:10.8.0.1', 'ip:10.8.0.6'],
+      endpoints: ['ip:10.10.0.1', 'ip:10.10.0.6'],
       capture_id: CAPTURE_ID,
       first_seen: '2026-09-04T17:31:40.229118Z',
       last_seen: '2026-09-04T17:37:50.660402Z',
@@ -539,10 +539,10 @@ export const sampleCapture: CaptureDocument = {
 
     {
       // Sub-circle two, conversation two: out to the internet over the tunnel.
-      id: 'edge_ip-10.8.0.6_ip-93.184.216.34',
+      id: 'edge_ip-10.10.0.6_ip-96.7.128.175',
       layer: 'l3',
       directed: false,
-      endpoints: ['ip:10.8.0.6', 'ip:93.184.216.34'],
+      endpoints: ['ip:10.10.0.6', 'ip:96.7.128.175'],
       capture_id: CAPTURE_ID,
       first_seen: '2026-09-04T17:32:08.771230Z',
       last_seen: '2026-09-04T17:37:20.118844Z',
@@ -564,10 +564,10 @@ export const sampleCapture: CaptureDocument = {
     },
 
     {
-      id: 'edge_ip-192.168.1.1_ip-192.168.1.77',
+      id: 'edge_ip-10.20.30.1_ip-10.20.30.77',
       layer: 'l3',
       directed: false,
-      endpoints: ['ip:192.168.1.1', 'ip:192.168.1.77'],
+      endpoints: ['ip:10.20.30.1', 'ip:10.20.30.77'],
       capture_id: CAPTURE_ID,
       first_seen: '2026-09-04T17:31:12.338001Z',
       last_seen: '2026-09-04T17:37:44.019663Z',
@@ -591,10 +591,10 @@ export const sampleCapture: CaptureDocument = {
     },
 
     {
-      id: 'edge_ip-192.168.1.1_ip-93.184.216.34',
+      id: 'edge_ip-10.20.30.1_ip-96.7.128.175',
       layer: 'l3',
       directed: false,
-      endpoints: ['ip:192.168.1.1', 'ip:93.184.216.34'],
+      endpoints: ['ip:10.20.30.1', 'ip:96.7.128.175'],
       capture_id: CAPTURE_ID,
       first_seen: '2026-09-04T17:30:11.902441Z',
       last_seen: '2026-09-04T17:36:20.771003Z',
