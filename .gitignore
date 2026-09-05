@@ -1,0 +1,5 @@
+# Tool caches that land at the repo root when a command is run from the wrong
+# directory. The real dependency trees live in frontend/ and backend/, each
+# ignored by its own .gitignore.
+node_modules/
+.DS_Store

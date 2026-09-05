@@ -630,3 +630,99 @@ code {
   color: var(--text);
   text-transform: uppercase;
 }
+
+/* ---------- backend health ---------- */
+
+.health {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.health-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--text-dim);
+}
+
+.health-ok .health-dot {
+  background: #3fb950;
+}
+
+.health-warn .health-dot {
+  background: var(--router);
+}
+
+.health-warn {
+  color: var(--router);
+}
+
+.health-checking .health-dot {
+  background: var(--host);
+  animation: health-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes health-pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+/* The reason, which is the useful half. Kept from pushing the line wide. */
+.health-detail {
+  color: var(--text-dim);
+  opacity: 0.85;
+  max-width: 46ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.link-button {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--host);
+  font: inherit;
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ---------- upload progress ---------- */
+
+.upload-button-busy {
+  border-color: var(--line);
+  color: var(--text-dim);
+  cursor: progress;
+}
+
+.upload-progress {
+  width: 220px;
+  height: 4px;
+  border: none;
+  border-radius: 2px;
+  background: var(--surface-2);
+  appearance: none;
+}
+
+.upload-progress::-webkit-progress-bar {
+  background: var(--surface-2);
+  border-radius: 2px;
+}
+
+.upload-progress::-webkit-progress-value {
+  background: var(--host);
+  border-radius: 2px;
+}
+
+.upload-progress::-moz-progress-bar {
+  background: var(--host);
+  border-radius: 2px;
+}

@@ -2,16 +2,13 @@ import { parseCaptureJson } from '@/api/parse'
 import type { ParseResult } from '@/api/parse'
 
 /**
- * What the file picker produced.
+ * What kind of file the picker produced.
  *
- * `capture_pending_backend` is the stage-2 gap made explicit rather than
- * silently ignored: a .pcapng needs tshark, which lives in the backend, which
- * is not wired up yet. Stage 3 replaces exactly this branch with a POST.
+ * A schema document is parsed here in the browser; a capture needs Wireshark's
+ * dissectors and so needs the backend. Classification is kept separate from
+ * either action so it stays testable without a network.
  */
-export type FileResult =
-  | { kind: 'document'; result: ParseResult; filename: string }
-  | { kind: 'capture_pending_backend'; filename: string }
-  | { kind: 'unsupported'; filename: string }
+export type FileKind = 'document' | 'capture' | 'unsupported'
 
 const CAPTURE_EXTENSIONS = ['.pcap', '.pcapng', '.cap', '.pcapng.gz', '.pcap.gz']
 const DOCUMENT_EXTENSIONS = ['.json']
@@ -23,17 +20,17 @@ function endsWithAny(name: string, extensions: readonly string[]): boolean {
   return extensions.some((extension) => lower.endsWith(extension))
 }
 
+export function classifyFile(file: File): FileKind {
+  if (endsWithAny(file.name, DOCUMENT_EXTENSIONS)) return 'document'
+  if (endsWithAny(file.name, CAPTURE_EXTENSIONS)) return 'capture'
+  return 'unsupported'
+}
+
 /**
- * Route a picked file. A schema document is parsed and rendered for real; a
- * capture file is recognised and refused with a reason, not swallowed.
+ * Read and validate a schema document without involving the server.
+ *
+ * This path survives on the static build, where there is no backend at all.
  */
-export async function readCaptureFile(file: File): Promise<FileResult> {
-  if (endsWithAny(file.name, DOCUMENT_EXTENSIONS)) {
-    const text = await file.text()
-    return { kind: 'document', result: parseCaptureJson(text), filename: file.name }
-  }
-  if (endsWithAny(file.name, CAPTURE_EXTENSIONS)) {
-    return { kind: 'capture_pending_backend', filename: file.name }
-  }
-  return { kind: 'unsupported', filename: file.name }
+export async function readCaptureDocument(file: File): Promise<ParseResult> {
+  return parseCaptureJson(await file.text())
 }
