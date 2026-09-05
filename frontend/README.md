@@ -8,8 +8,12 @@ npm install
 npm run dev          # http://localhost:5173, /api proxied to the backend
 npm run build        # the type check, not just the bundle
 npm run test         # vitest
-npm run build:pages  # rebuild mock/, the copy GitHub Pages serves
 ```
+
+`dist/` is committed, not ignored: GitHub Pages serves it straight from the
+repository with no build step in CI. So a change that should reach the
+published page needs `npm run build` run and the output committed alongside
+it.
 
 The graph, the panel and `.json` uploads need no server. Dissecting a capture
 does, so for that:
@@ -44,7 +48,7 @@ deep as a `NaN`.
 
 ### No backend is a supported state
 
-The build published to GitHub Pages from `mock/` has no backend behind it, so
+The build published to GitHub Pages from `dist/` has no backend behind it, so
 "nothing is answering" is a normal condition rather than a failure:
 
 - The health strip says **No backend** and offers a retry.
@@ -156,8 +160,8 @@ src/
   api/               client.ts (the only place this app fetches), parse.ts
                      (the boundary), mock.ts (the sample document)
   components/        one per file, named for the file
-mock/                the built copy GitHub Pages serves. Regenerate with
-                     `npm run build:pages`; do not edit by hand.
+dist/                the build GitHub Pages serves. Committed, and written by
+                     `npm run build`; never edited by hand.
 ```
 
 Imports are absolute through `@/`, which is declared twice: `paths` in
