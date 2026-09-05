@@ -67,6 +67,31 @@ describe('panning the canvas', () => {
     expect(Number(rect.getAttribute('y'))).toBeCloseTo(-300, 6)
   })
 
+  it('captures the pan on the background, so the click ending it lands there', () => {
+    // The browser fires click at the nearest common ancestor of the
+    // pointerdown and pointerup targets, and pointer capture retargets
+    // pointerup to whatever holds the capture. Capture the svg root and the
+    // click arrives at the svg, where nothing clears the selection -- a plain
+    // click on empty canvas silently stops deselecting.
+    //
+    // jsdom implements no retargeting and fireEvent dispatches click straight
+    // at whatever element it is handed, so no behavioural test here can see
+    // that. This asserts the mechanism the browser behaviour hangs off.
+    const capture = vi.spyOn(Element.prototype, 'setPointerCapture')
+    const { container } = renderGraph()
+
+    fireEvent.pointerDown(background(container), { pointerId: 9, clientX: 0, clientY: 0 })
+
+    expect(capture).toHaveBeenCalled()
+    for (const target of capture.mock.instances) {
+      // Narrowed rather than cast: the spy types `this` as unknown, and a
+      // capture taken on something that is not an element at all should fail
+      // this just as loudly as one taken on the wrong element.
+      expect(target instanceof Element && target.classList.contains('graph-bg')).toBe(true)
+    }
+    capture.mockRestore()
+  })
+
   it('does not clear the selection at the end of a pan', () => {
     const { container, onSelect } = renderGraph({ kind: 'machine', id: 'mac:00:1a:2b:3c:4d:5e' })
     pan(container, { x: 120, y: 80 })
@@ -99,6 +124,113 @@ describe('panning the canvas', () => {
     fireEvent.pointerMove(svg, { pointerId: 3, clientX: 250, clientY: 250 })
     fireEvent.pointerUp(svg, { pointerId: 3, clientX: 250, clientY: 250 })
     expect(viewBox(container)).toEqual([0, 0, 940, 660])
+  })
+})
+
+/** One finger down on empty canvas. */
+function touchDown(container: HTMLElement, id: number, at: { x: number; y: number }): void {
+  fireEvent.pointerDown(background(container), {
+    pointerId: id,
+    pointerType: 'touch',
+    clientX: at.x,
+    clientY: at.y,
+  })
+}
+
+function touchMove(container: HTMLElement, id: number, at: { x: number; y: number }): void {
+  fireEvent.pointerMove(svgOf(container), {
+    pointerId: id,
+    pointerType: 'touch',
+    clientX: at.x,
+    clientY: at.y,
+  })
+}
+
+describe('pinching on a touch screen', () => {
+  it('zooms in as the fingers spread', () => {
+    const { container } = renderGraph()
+    touchDown(container, 1, { x: 400, y: 300 })
+    touchDown(container, 2, { x: 500, y: 300 })
+
+    // Twice as far apart: half as much view.
+    touchMove(container, 1, { x: 350, y: 300 })
+    touchMove(container, 2, { x: 550, y: 300 })
+
+    expect(viewBox(container)[2] ?? 0).toBeCloseTo(470, 6)
+  })
+
+  it('zooms out as they close', () => {
+    const { container } = renderGraph()
+    touchDown(container, 1, { x: 300, y: 300 })
+    touchDown(container, 2, { x: 500, y: 300 })
+    touchMove(container, 1, { x: 350, y: 300 })
+    touchMove(container, 2, { x: 450, y: 300 })
+
+    expect(viewBox(container)[2] ?? 0).toBeCloseTo(1880, 6)
+  })
+
+  it('pans and zooms in the one gesture, so the graph tracks the fingers', () => {
+    // Fingers spread and drift at the same time. Applying the two in sequence
+    // instead of together is what makes the graph slide out from under them.
+    const { container } = renderGraph()
+    touchDown(container, 1, { x: 400, y: 300 })
+    touchDown(container, 2, { x: 500, y: 300 })
+    touchMove(container, 1, { x: 250, y: 300 })
+    touchMove(container, 2, { x: 650, y: 300 })
+
+    const [x, , width] = viewBox(container)
+    // Four times as far apart, so a quarter of the view.
+    expect(width ?? 0).toBeCloseTo(235, 6)
+    // And the point the fingers came down on is still under their midpoint --
+    // the same fraction across the view as it was before the pinch started.
+    expect((450 - (x ?? 0)) / (width ?? 1)).toBeCloseTo(450 / 940, 10)
+  })
+
+  it('takes the canvas over from a body drag when a second finger lands', () => {
+    // Circles are big targets on a phone, so the second finger routinely lands
+    // on one. It has to pinch, not fight the drag.
+    const { container } = renderGraph()
+    const body = container.querySelector('.machine-body')?.parentElement
+    if (body === null || body === undefined) throw new Error('no machine on the canvas')
+
+    fireEvent.pointerDown(body, { pointerId: 1, pointerType: 'touch', clientX: 400, clientY: 300 })
+    fireEvent.pointerDown(body, { pointerId: 2, pointerType: 'touch', clientX: 500, clientY: 300 })
+    touchMove(container, 1, { x: 350, y: 300 })
+    touchMove(container, 2, { x: 550, y: 300 })
+
+    expect(viewBox(container)[2] ?? 0).toBeCloseTo(470, 6)
+  })
+
+  it('carries on panning with the finger left behind', () => {
+    const { container } = renderGraph()
+    touchDown(container, 1, { x: 400, y: 300 })
+    touchDown(container, 2, { x: 500, y: 300 })
+    fireEvent.pointerUp(svgOf(container), { pointerId: 2, pointerType: 'touch' })
+
+    const before = viewBox(container)[0] ?? 0
+    touchMove(container, 1, { x: 300, y: 300 })
+    expect(viewBox(container)[0] ?? 0).toBeCloseTo(before + 100, 6)
+  })
+
+  it('does not clear the selection at the end of a pinch', () => {
+    const { container, onSelect } = renderGraph({ kind: 'machine', id: 'mac:00:1a:2b:3c:4d:5e' })
+    touchDown(container, 1, { x: 400, y: 300 })
+    touchDown(container, 2, { x: 500, y: 300 })
+    fireEvent.pointerUp(svgOf(container), { pointerId: 2, pointerType: 'touch' })
+    fireEvent.pointerUp(svgOf(container), { pointerId: 1, pointerType: 'touch' })
+    fireEvent.click(background(container))
+    expect(onSelect).not.toHaveBeenCalled()
+  })
+
+  it('still lets a wobbly tap select, rather than reading it as a pan', () => {
+    // A finger is far less steady than a mouse; at the mouse threshold a
+    // deliberate tap reads as a drag and the selection is swallowed.
+    const { container, onSelect } = renderGraph()
+    touchDown(container, 1, { x: 400, y: 300 })
+    touchMove(container, 1, { x: 406, y: 304 })
+    fireEvent.pointerUp(svgOf(container), { pointerId: 1, pointerType: 'touch' })
+    fireEvent.click(background(container))
+    expect(onSelect).toHaveBeenCalledWith(null)
   })
 })
 

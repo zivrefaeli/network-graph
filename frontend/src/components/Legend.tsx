@@ -1,5 +1,6 @@
 import { CollapseToggle } from '@/components/CollapseToggle'
 import { useCollapsed } from '@/hooks/useCollapsed'
+import { matchesNarrowScreen } from '@/lib/media'
 
 /**
  * Colour meaning is defined once as tokens in styles.css and referenced by
@@ -10,7 +11,9 @@ import { useCollapsed } from '@/hooks/useCollapsed'
  * stays, so what it is remains obvious and it can be brought back.
  */
 export function Legend() {
-  const [collapsed, toggle] = useCollapsed('legend')
+  // On a phone the open card covers most of the graph it is explaining, so it
+  // starts folded there. Toggling it stores a choice that outranks this.
+  const [collapsed, toggle] = useCollapsed('legend', matchesNarrowScreen())
 
   return (
     <section className="legend" aria-label="Legend">
@@ -55,7 +58,8 @@ export function Legend() {
           stays where you drop it; double-click to hand it back to the layout.
         </li>
         <li className="legend-note">
-          Drag the background to pan and scroll to zoom. Zoom changes what you can see, never
+          Drag the background to pan and scroll to zoom; on a touch screen, drag with one
+          finger and pinch with two. Zoom changes what you can see, never
           what a circle means. <strong>Fit</strong> frames every circle, wherever the layout
           put it.
         </li>

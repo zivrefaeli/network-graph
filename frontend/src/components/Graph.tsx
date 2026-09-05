@@ -65,6 +65,12 @@ export function Graph({ doc, selection, onSelect }: GraphProps) {
     onSelect(null)
   }
 
+  const handlePointerDown = (event: React.PointerEvent<SVGSVGElement>): void => {
+    // A second finger is a pinch wherever it lands, so it takes the canvas
+    // over from a drag in progress rather than the two fighting for the graph.
+    if (view.handlePointerDown(event) === 'pinch') sim.cancelDrag()
+  }
+
   const handlePointerMove = (event: React.PointerEvent<SVGSVGElement>): void => {
     // Both gestures listen at the root and each ignores events that are not
     // its own, so a body drag and a pan can never both act on one pointer.
@@ -94,6 +100,7 @@ export function Graph({ doc, selection, onSelect }: GraphProps) {
         viewBox={view.viewBox}
         preserveAspectRatio="xMidYMid meet"
         aria-label={`Network graph: ${doc.machines.length} machines, ${doc.nodes.length} addresses, ${doc.edges.length} conversations`}
+        onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
@@ -106,7 +113,7 @@ export function Graph({ doc, selection, onSelect }: GraphProps) {
           y={view.viewport.y}
           width={view.viewport.width}
           height={view.viewport.height}
-          onPointerDown={view.handleBackgroundPointerDown}
+          onPointerDown={view.markBackgroundPointer}
           onClick={clearSelection}
         />
 

@@ -13,6 +13,17 @@
  */
 export const DRAG_SLOP_PX = 4
 
+/**
+ * The same threshold for a finger, which is far less steady than a mouse and
+ * lands on a moving target. At 4px a deliberate tap on a circle routinely
+ * reads as a drag, and the tap is swallowed instead of selecting anything.
+ */
+export const TOUCH_DRAG_SLOP_PX = 10
+
+export function slopFor(pointerType: string): number {
+  return pointerType === 'touch' ? TOUCH_DRAG_SLOP_PX : DRAG_SLOP_PX
+}
+
 export interface UserPoint {
   x: number
   y: number

@@ -9,7 +9,7 @@ import {
 import type { SimulationLinkDatum, SimulationNodeDatum } from 'd3-force'
 import { bodyIdOf } from '@/lib/layout'
 import type { Body, Layout } from '@/lib/layout'
-import { DRAG_SLOP_PX, toUserPoint } from '@/lib/pointer'
+import { slopFor, toUserPoint } from '@/lib/pointer'
 import type { AddressId, EdgeId, NodeId } from '@/types/graph'
 
 const LINK_BASE_DISTANCE = 150
@@ -39,6 +39,8 @@ export interface ForceLayout {
   handlePointerMove: (event: React.PointerEvent<SVGSVGElement>) => void
   handlePointerUp: (event: React.PointerEvent<SVGSVGElement>) => void
   releaseBody: (simBody: SimBody) => void
+  /** Abandons a drag in progress, leaving the body where it currently sits. */
+  cancelDrag: () => void
   wasDragged: () => boolean
 }
 
@@ -62,6 +64,7 @@ export function useForceLayout(layout: Layout, size: { width: number; height: nu
     pointerId: number
     originX: number
     originY: number
+    slop: number
   } | null>(null)
   const draggedRef = useRef(false)
 
@@ -157,7 +160,9 @@ export function useForceLayout(layout: Layout, size: { width: number; height: nu
     event: React.PointerEvent<SVGGElement>,
     simBody: SimBody,
   ): void => {
-    event.stopPropagation()
+    // Deliberately not stopPropagation: the svg root has to see every pointer
+    // that goes down, because a second finger anywhere -- a circle very much
+    // included -- is a pinch, and it takes this drag over.
     event.currentTarget.setPointerCapture(event.pointerId)
     draggedRef.current = false
     dragRef.current = {
@@ -165,6 +170,7 @@ export function useForceLayout(layout: Layout, size: { width: number; height: nu
       pointerId: event.pointerId,
       originX: event.clientX,
       originY: event.clientY,
+      slop: slopFor(event.pointerType),
     }
     simBody.fx = simBody.x
     simBody.fy = simBody.y
@@ -178,7 +184,7 @@ export function useForceLayout(layout: Layout, size: { width: number; height: nu
     drag.simBody.fx = point.x
     drag.simBody.fy = point.y
     const travelled = Math.hypot(event.clientX - drag.originX, event.clientY - drag.originY)
-    if (travelled > DRAG_SLOP_PX) draggedRef.current = true
+    if (travelled > drag.slop) draggedRef.current = true
   }
 
   const handlePointerUp = (event: React.PointerEvent<SVGSVGElement>): void => {
@@ -187,6 +193,14 @@ export function useForceLayout(layout: Layout, size: { width: number; height: nu
     dragRef.current = null
     // fx and fy deliberately stay set. The body keeps the spot it was dropped
     // on while everything else settles around it; double-click lets it go.
+    simRef.current?.alphaTarget(0)
+  }
+
+  const cancelDrag = (): void => {
+    if (dragRef.current === null) return
+    dragRef.current = null
+    // fx and fy stay where they are, exactly as they would after a normal
+    // drop. The body keeps the spot it had reached rather than springing back.
     simRef.current?.alphaTarget(0)
   }
 
@@ -204,6 +218,7 @@ export function useForceLayout(layout: Layout, size: { width: number; height: nu
     handlePointerMove,
     handlePointerUp,
     releaseBody,
+    cancelDrag,
     wasDragged: () => draggedRef.current,
   }
 }

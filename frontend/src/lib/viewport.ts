@@ -88,6 +88,34 @@ export function zoomAt(
 }
 
 /**
+ * Where a pinch leaves the view: `grabbed` is the graph point the two fingers
+ * came down on, `toward` is where that point has to end up, and `factor` is
+ * how much further apart the fingers have moved.
+ *
+ * Zoom and pan fall out of one calculation rather than being applied in
+ * sequence, because a pinch is both at once -- fingers spread and drift, and
+ * doing it in two steps makes the graph slide out from under them.
+ *
+ * Both points are measured against `startView` using the matrix frozen at the
+ * start of the gesture, for the reason spelled out in lib/pointer.ts.
+ */
+export function pinchTo(
+  startView: Viewport,
+  grabbed: UserPoint,
+  toward: UserPoint,
+  factor: number,
+  base: Extent,
+): Viewport {
+  const width = clampWidth(startView.width / factor, base)
+  const height = width * (startView.height / startView.width)
+  // The screen fraction the fingers have moved to, read in the start view.
+  const fx = (toward.x - startView.x) / startView.width
+  const fy = (toward.y - startView.y) / startView.height
+  // Place the view so the grabbed point lands on exactly that fraction.
+  return { x: grabbed.x - fx * width, y: grabbed.y - fy * height, width, height }
+}
+
+/**
  * The smallest view that holds every circle whole, with room to breathe.
  *
  * This is what answers "where did that node go" -- the force layout has no

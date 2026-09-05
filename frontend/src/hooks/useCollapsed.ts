@@ -8,11 +8,12 @@ const PREFIX = 'network-graph:collapsed:'
  * not worth a blank screen, so both directions swallow it and fall back to
  * "expanded", which is the state that shows the user everything.
  */
-function readCollapsed(key: string): boolean {
+function readCollapsed(key: string, fallback: boolean): boolean {
   try {
-    return window.localStorage.getItem(PREFIX + key) === 'true'
+    const stored = window.localStorage.getItem(PREFIX + key)
+    return stored === null ? fallback : stored === 'true'
   } catch {
-    return false
+    return fallback
   }
 }
 
@@ -30,9 +31,13 @@ function writeCollapsed(key: string, collapsed: boolean): void {
  * Per-panel rather than lifted into App: which chrome you keep open is a
  * durable preference about the tool, not part of the document being read, and
  * it has no business invalidating on a new capture the way selection does.
+ *
+ * `initial` is only a starting point -- somewhere to be on a screen that has
+ * never said otherwise. Once the panel has been toggled by hand, that choice
+ * wins and keeps winning, so a phone-sized default never overrides it.
  */
-export function useCollapsed(key: string): readonly [boolean, () => void] {
-  const [collapsed, setCollapsed] = useState(() => readCollapsed(key))
+export function useCollapsed(key: string, initial = false): readonly [boolean, () => void] {
+  const [collapsed, setCollapsed] = useState(() => readCollapsed(key, initial))
 
   const toggle = (): void => {
     const next = !collapsed

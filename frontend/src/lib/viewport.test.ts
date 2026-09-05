@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { centreOf, fitTo, initialViewport, panBy, viewBoxOf, zoomAt } from '@/lib/viewport'
+import {
+  centreOf,
+  fitTo,
+  initialViewport,
+  panBy,
+  pinchTo,
+  viewBoxOf,
+  zoomAt,
+} from '@/lib/viewport'
 import type { Circle, Extent, Viewport } from '@/lib/viewport'
 
 const BASE: Extent = { width: 940, height: 660 }
@@ -74,6 +82,48 @@ describe('zoomAt', () => {
     let view = initialViewport(BASE)
     for (let i = 0; i < 40; i += 1) view = zoomAt(view, 0.5, centreOf(view), BASE)
     expect(view.width).toBeCloseTo(BASE.width / 0.15, 6)
+  })
+})
+
+describe('pinchTo', () => {
+  it('holds the grabbed point under the fingers as they spread', () => {
+    const view = initialViewport(BASE)
+    const grabbed = { x: 300, y: 500 }
+    const pinched = pinchTo(view, grabbed, grabbed, 2, BASE)
+
+    // The fingers did not travel, so the point they came down on has not moved
+    // on screen -- it is only that there is now half as much view around it.
+    expect(fractionIn(pinched, grabbed)).toEqual(fractionIn(view, grabbed))
+    expect(pinched.width).toBeCloseTo(BASE.width / 2, 10)
+  })
+
+  it('carries the grabbed point along when the fingers also drift', () => {
+    // A real pinch is never pure zoom. Doing the two in sequence instead of at
+    // once is what makes the graph slide out from under the fingers.
+    const view = initialViewport(BASE)
+    const grabbed = { x: 300, y: 500 }
+    const toward = { x: 500, y: 200 }
+
+    const pinched = pinchTo(view, grabbed, toward, 1.7, BASE)
+
+    // The grabbed point now sits where the fingers ended up.
+    const landed = fractionIn(pinched, grabbed)
+    const wanted = fractionIn(view, toward)
+    expect(landed.x).toBeCloseTo(wanted.x, 10)
+    expect(landed.y).toBeCloseTo(wanted.y, 10)
+  })
+
+  it('is a plain pan at a factor of one', () => {
+    const view = initialViewport(BASE)
+    const pinched = pinchTo(view, { x: 100, y: 100 }, { x: 160, y: 40 }, 1, BASE)
+    expect(pinched).toEqual(panBy(view, -60, 60))
+  })
+
+  it('keeps the aspect ratio and honours the zoom bounds', () => {
+    const view = initialViewport(BASE)
+    const squeezed = pinchTo(view, { x: 470, y: 330 }, { x: 470, y: 330 }, 1000, BASE)
+    expect(squeezed.width / squeezed.height).toBeCloseTo(BASE.width / BASE.height, 10)
+    expect(squeezed.width).toBeCloseTo(BASE.width / 6, 6)
   })
 })
 
