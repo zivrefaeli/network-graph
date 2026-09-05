@@ -1,0 +1,62 @@
+[project]
+name = "network-graph-backend"
+version = "0.1.0"
+description = "Turns a Wireshark capture into the graph document described in README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.5",
+    "python-multipart>=0.0.12",
+    "uvicorn[standard]>=0.32",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.27",
+    "httpx2>=2.12.0",
+    "mypy>=1.13",
+    "pytest>=8.3",
+    "ruff>=0.8",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "A", "C4", "SIM", "TC", "ANN", "ASYNC", "S", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]  # pytest asserts
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+disallow_any_explicit = true
+plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "tshark: needs the tshark binary; runs in the container, skipped on a bare host",
+]
+
+[[tool.mypy.overrides]]
+# pydantic.BaseModel.__init__ is (**data: Any), so every model that subclasses
+# it trips disallow_any_explicit on a signature this code never wrote. CLAUDE.md
+# mandates both Pydantic v2 models and disallow_any_explicit, and the two cannot
+# both hold here. Scoped to the module that transcribes the schema and nowhere
+# else, so a real `Any` written by hand anywhere in app/ still fails the gate.
+# app.settings is here for the same reason: BaseSettings.__init__ is also
+# (**values: Any).
+module = ["app.schemas.*", "app.settings"]
+disable_error_code = ["explicit-any"]
