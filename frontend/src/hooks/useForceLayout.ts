@@ -9,11 +9,8 @@ import {
 import type { SimulationLinkDatum, SimulationNodeDatum } from 'd3-force'
 import { bodyIdOf } from '@/lib/layout'
 import type { Body, Layout } from '@/lib/layout'
+import { DRAG_SLOP_PX, toUserPoint } from '@/lib/pointer'
 import type { AddressId, EdgeId, NodeId } from '@/types/graph'
-
-// A press that moves less than this counts as a click, not a drag. Without it,
-// finishing a drag would also select whatever you just finished moving.
-const DRAG_SLOP_PX = 4
 
 const LINK_BASE_DISTANCE = 150
 const CHARGE_STRENGTH = -2200
@@ -148,16 +145,13 @@ export function useForceLayout(layout: Layout, size: { width: number; height: nu
   }
 
   // Client coordinates go through the SVG matrix rather than being used raw,
-  // so dragging stays accurate however the viewBox is scaled to the window.
-  const toSvgPoint = (event: React.PointerEvent<SVGElement>): { x: number; y: number } => {
-    const svg = svgRef.current
-    const ctm = svg?.getScreenCTM()
-    if (svg === null || ctm === null || ctm === undefined) {
-      return { x: event.clientX, y: event.clientY }
-    }
-    const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(ctm.inverse())
-    return { x: point.x, y: point.y }
-  }
+  // so dragging stays accurate however the viewBox is scaled to the window --
+  // including while the view is panned or zoomed, which moves the matrix
+  // rather than the bodies. Read live on every move, unlike the pan gesture:
+  // this maps the cursor to a graph point, so if the view shifts underneath,
+  // the new mapping is the correct one.
+  const toSvgPoint = (event: React.PointerEvent<SVGElement>): { x: number; y: number } =>
+    toUserPoint(svgRef.current, event.clientX, event.clientY)
 
   const handleBodyPointerDown = (
     event: React.PointerEvent<SVGGElement>,

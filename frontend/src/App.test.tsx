@@ -122,8 +122,9 @@ describe('with a backend answering', () => {
     expect(container.querySelector('.panel h2')?.textContent).toBe('workstation-01')
 
     await user.upload(fileInput(container), captureFile())
+    // No selection, no panel at all.
     await waitFor(() => {
-      expect(screen.getByText(/Click a machine/)).toBeTruthy()
+      expect(screen.queryByRole('complementary', { name: 'Details' })).toBeNull()
     })
   })
 })

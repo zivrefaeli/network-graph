@@ -1,3 +1,5 @@
+import { CollapseToggle } from '@/components/CollapseToggle'
+import { useCollapsed } from '@/hooks/useCollapsed'
 import {
   durationSeconds,
   formatBytes,
@@ -441,9 +443,9 @@ function EdgePanel({ edge, doc }: { edge: GraphEdge; doc: CaptureDocument }) {
   )
 }
 
-interface DetailsPanelProps {
+interface DetailsBodyProps {
   doc: CaptureDocument
-  selection: Selection
+  selection: NonNullable<Selection>
   onSelect: (selection: Selection) => void
 }
 
@@ -451,50 +453,58 @@ function findMachine(doc: CaptureDocument, id: MachineId): Machine | undefined {
   return doc.machines.find((machine) => machine.id === id)
 }
 
-export function DetailsPanel({ doc, selection, onSelect }: DetailsPanelProps) {
-  if (selection === null) {
-    return (
-      <aside className="panel panel-empty" aria-label="Details">
-        <p>Click a machine, an address inside it, or a line to read what the capture says.</p>
-        <p className="muted">
-          Drag a machine to move it &mdash; its addresses and their lines come along. It
-          stays where you drop it; double-click to hand it back to the layout.
-        </p>
-      </aside>
-    )
-  }
-
-  const missing = (id: string) => (
-    <aside className="panel" aria-label="Details">
-      <Dangling id={id} />
-    </aside>
-  )
-
+function DetailsBody({ doc, selection, onSelect }: DetailsBodyProps) {
   if (selection.kind === 'machine') {
     const machine = findMachine(doc, selection.id)
-    if (machine === undefined) return missing(selection.id)
-    return (
-      <aside className="panel" aria-label="Details">
-        <MachinePanel machine={machine} doc={doc} onSelect={onSelect} />
-      </aside>
-    )
+    if (machine === undefined) return <Dangling id={selection.id} />
+    return <MachinePanel machine={machine} doc={doc} onSelect={onSelect} />
   }
 
   if (selection.kind === 'node') {
     const node = doc.nodes.find((entry) => entry.id === selection.id)
-    if (node === undefined) return missing(selection.id)
-    return (
-      <aside className="panel" aria-label="Details">
-        <NodePanel node={node} doc={doc} onSelect={onSelect} />
-      </aside>
-    )
+    if (node === undefined) return <Dangling id={selection.id} />
+    return <NodePanel node={node} doc={doc} onSelect={onSelect} />
   }
 
   const edge = findEdge(doc, selection.id)
-  if (edge === undefined) return missing(selection.id)
+  if (edge === undefined) return <Dangling id={selection.id} />
+  return <EdgePanel edge={edge} doc={doc} />
+}
+
+interface DetailsPanelProps {
+  doc: CaptureDocument
+  /**
+   * Not nullable. App does not mount the panel with nothing selected, and this
+   * type is what keeps the two in step -- the old empty state was 380px of
+   * chrome whose only content was an explanation of itself.
+   */
+  selection: NonNullable<Selection>
+  onSelect: (selection: Selection) => void
+}
+
+/**
+ * Collapsible as well as conditional: with something selected there is a
+ * reason to want the canvas back without giving up the selection to get it.
+ * The rail keeps the panel addressable, so it is a fold rather than a close.
+ */
+export function DetailsPanel({ doc, selection, onSelect }: DetailsPanelProps) {
+  const [collapsed, toggle] = useCollapsed('details')
+
   return (
-    <aside className="panel" aria-label="Details">
-      <EdgePanel edge={edge} doc={doc} />
+    <aside className={`panel${collapsed ? ' panel-collapsed' : ''}`} aria-label="Details">
+      <div className="panel-bar">
+        <span className="panel-bar-title">Details</span>
+        <CollapseToggle
+          collapsed={collapsed}
+          onToggle={toggle}
+          controls="details-body"
+          label="the details panel"
+        />
+      </div>
+
+      <div id="details-body" hidden={collapsed}>
+        <DetailsBody doc={doc} selection={selection} onSelect={onSelect} />
+      </div>
     </aside>
   )
 }
