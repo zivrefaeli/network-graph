@@ -8,7 +8,7 @@ import { defineConfig } from 'vitest/config'
 // have drifted apart.
 export default defineConfig(({ command }) => ({
   // Relative asset URLs for the build, so the output can be served from a
-  // subpath -- which is what GitHub Pages does with frontend/mock/. The dev
+  // subpath -- which is what GitHub Pages does with a project page. The dev
   // server keeps an absolute base, where a relative one has no meaning.
   base: command === 'build' ? './' : '/',
   plugins: [react()],

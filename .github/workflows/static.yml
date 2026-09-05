@@ -1,4 +1,6 @@
-# Simple workflow for deploying static content to GitHub Pages
+# Builds the frontend and deploys it to GitHub Pages. Nothing built is
+# committed: `frontend/dist` is produced here and handed straight to the Pages
+# artifact, so the repository holds source only.
 name: Deploy static content to Pages
 
 on:
@@ -28,16 +30,38 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          # Matches the version frontend/Dockerfile builds on, so a build that
+          # passes locally in the container passes here.
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        # `ci`, not `install`: it installs exactly what package-lock.json
+        # pins and fails if the lock file and package.json have drifted.
+        run: npm ci
+      - name: Test
+        # CI (.github/workflows/ci.yml) already ran this on the PR. It runs
+        # again here because what is deployed is built from main, and nothing
+        # guarantees main is the commit that was reviewed.
+        run: npm run test
+      - name: Build
+        # This is the type check as well as the bundle -- see package.json.
+        run: npm run build
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # The committed build output. `npm run build` writes it, and it is
-          # tracked on purpose so Pages serves it without a build step here.
+          # Written by the build step above, not tracked in git.
           path: './frontend/dist'
       - name: Deploy to GitHub Pages
         id: deployment

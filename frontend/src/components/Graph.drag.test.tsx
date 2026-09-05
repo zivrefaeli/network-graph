@@ -3,8 +3,9 @@ import { act, fireEvent, render, waitFor } from '@testing-library/react'
 import { sampleCapture } from '@/api/mock'
 import { Graph } from '@/components/Graph'
 
-// jsdom implements no SVG geometry at all, so the three APIs the drag path
-// depends on are stubbed with the identity transform. That makes the *logic*
+// jsdom implements no SVG geometry at all, so the two APIs the drag path
+// depends on are stubbed with the identity transform (pointer capture is
+// stubbed for every test file in src/test/setup.ts). That makes the *logic*
 // testable -- which body moves, what its children do, whether the pin holds --
 // while leaving the coordinate maths itself to a real browser.
 beforeAll(() => {
@@ -12,10 +13,6 @@ beforeAll(() => {
   Object.defineProperty(SVGElement.prototype, 'getScreenCTM', {
     configurable: true,
     value: () => identity,
-  })
-  Object.defineProperty(Element.prototype, 'setPointerCapture', {
-    configurable: true,
-    value: () => {},
   })
   if (!('DOMPoint' in globalThis)) {
     // Fields declared rather than passed as parameter properties, which

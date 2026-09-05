@@ -1,6 +1,7 @@
 node_modules
 *.local
 
-# dist/ is deliberately NOT ignored. GitHub Pages serves it straight from the
-# repository, so the built output is committed. Rebuild with `npm run build`
-# before pushing anything that should reach the published page.
+# The build output is not committed. The Pages workflow
+# (.github/workflows/static.yml) runs `npm run build` and uploads dist/ from
+# the runner, so a local build is yours alone and never needs pushing.
+dist
