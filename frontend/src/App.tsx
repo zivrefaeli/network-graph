@@ -2,16 +2,22 @@ import { useState } from 'react'
 import { sampleCapture } from '@/api/mock'
 import { DetailsPanel } from '@/components/DetailsPanel'
 import { Graph } from '@/components/Graph'
+import { HealthStrip } from '@/components/HealthStrip'
 import { Legend } from '@/components/Legend'
 import { UploadButton } from '@/components/UploadButton'
+import { useHealth } from '@/hooks/useHealth'
 import { formatCount } from '@/lib/format'
 import type { CaptureDocument, Selection } from '@/types/graph'
 
 export function App() {
   const [doc, setDoc] = useState<CaptureDocument>(sampleCapture)
   const [selection, setSelection] = useState<Selection>(null)
+  const { state: health, recheck } = useHealth()
 
   const isSample = doc === sampleCapture
+  // Only a backend that answered *and* has a dissector can take a capture.
+  // Anything else and the button says so rather than failing mid-upload.
+  const captureUploadAvailable = health.kind === 'ready' && health.health.tshark_available
 
   // Selection lives here and is passed down; no component holds its own idea
   // of what is selected. A new document invalidates every id in the old one.
@@ -37,11 +43,13 @@ export function App() {
             {doc.edges.length} conversations
             {isSample && <span className="tag">sample</span>}
           </p>
+          <HealthStrip state={health} onRecheck={recheck} />
         </div>
         <UploadButton
           onDocument={loadDocument}
           canReset={!isSample}
           onReset={() => loadDocument(sampleCapture)}
+          captureUploadAvailable={captureUploadAvailable}
         />
       </header>
 

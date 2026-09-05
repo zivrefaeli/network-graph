@@ -59,7 +59,8 @@ function Hostnames({
   confidence,
 }: {
   hostnames: readonly Hostname[]
-  confidence?: number
+  // Null when nothing named it, which the backend sends explicitly.
+  confidence?: number | null
 }) {
   return (
     <section>
@@ -77,7 +78,7 @@ function Hostnames({
           </div>
         ))
       )}
-      {confidence !== undefined && (
+      {confidence != null && (
         <Row label="Confidence">{`${Math.round(confidence * 100)}%`}</Row>
       )}
     </section>
@@ -255,7 +256,7 @@ function NodePanel({ node, doc, onSelect }: NodePanelProps) {
         <Row label="Scope">{props.scope}</Row>
         <Row label="On this network">{props.is_local ? 'yes' : 'no'}</Row>
         <Row label="Basis">
-          {node.inference?.is_local_basis !== undefined ? (
+          {node.inference?.is_local_basis != null ? (
             <code className="basis">{node.inference.is_local_basis}</code>
           ) : null}
         </Row>

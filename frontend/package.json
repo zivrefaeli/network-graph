@@ -8,7 +8,8 @@
     "build": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "build:pages": "tsc --noEmit -p tsconfig.json && vite build --outDir mock --emptyOutDir"
   },
   "dependencies": {
     "d3-force": "^3.0.0",

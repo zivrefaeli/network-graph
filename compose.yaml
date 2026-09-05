@@ -1,6 +1,9 @@
-# The backend runs in a container because it needs tshark, which is a Wireshark
-# install rather than a Python package. Nothing in app/aggregation needs this --
-# that layer is pure and its tests run on the host with `uv run pytest`.
+# The local stack. The backend runs in a container because it needs tshark,
+# which is a Wireshark install rather than a Python package; the frontend runs
+# in one so the two come up together and the proxy target is a service name.
+#
+# Nothing in backend/app/aggregation or frontend/src/lib needs any of this --
+# both layers are pure and their tests run on a bare host.
 
 services:
   backend:
@@ -11,10 +14,12 @@ services:
     ports:
       - "8000:8000"
     environment:
-      # The frontend talks to this through Vite's dev proxy in stage 3, so no
-      # cross-origin request is made and no CORS origin is needed here yet.
       NG_TSHARK_BIN: tshark
       NG_MAX_UPLOAD_BYTES: "2147483648"
+      # Left empty on purpose. The frontend reaches the backend through Vite's
+      # proxy, so every request is same-origin and no CORS header is needed.
+      # Set this only for a deployment where the browser calls the API directly.
+      NG_CORS_ORIGINS: "[]"
     volumes:
       # Source is mounted so an edit is picked up without a rebuild; the venv
       # lives at /opt/venv and is deliberately outside the mount.
@@ -34,3 +39,22 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+      target: dev
+    image: network-graph-frontend:dev
+    ports:
+      - "5173:5173"
+    environment:
+      # Where Vite forwards /api. A service name, not localhost: inside the
+      # network, localhost is this container.
+      VITE_PROXY_TARGET: http://backend:8000
+    volumes:
+      - ./frontend/src:/srv/src:ro
+      - ./frontend/index.html:/srv/index.html:ro
+      - ./frontend/vite.config.ts:/srv/vite.config.ts:ro
+    depends_on:
+      backend:
+        condition: service_healthy
