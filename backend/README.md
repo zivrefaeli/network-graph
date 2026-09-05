@@ -41,6 +41,10 @@ run in the container:
 docker compose run --rm --no-deps backend pytest    # 131 pass
 ```
 
+CI runs all 131 on every pull request: `.github/workflows/ci.yml` installs
+`tshark` from apt on the runner, so nothing skips there. The same job runs the
+lint, format and type gates above, in that order.
+
 Regenerate the fixtures after changing what they contain:
 
 ```
