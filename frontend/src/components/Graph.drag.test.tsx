@@ -1,36 +1,10 @@
-import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, waitFor } from '@testing-library/react'
 import { sampleCapture } from '@/api/mock'
 import { Graph } from '@/components/Graph'
 
-// jsdom implements no SVG geometry at all, so the two APIs the drag path
-// depends on are stubbed with the identity transform (pointer capture is
-// stubbed for every test file in src/test/setup.ts). That makes the *logic*
-// testable -- which body moves, what its children do, whether the pin holds --
-// while leaving the coordinate maths itself to a real browser.
-beforeAll(() => {
-  const identity = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0, inverse: () => identity }
-  Object.defineProperty(SVGElement.prototype, 'getScreenCTM', {
-    configurable: true,
-    value: () => identity,
-  })
-  if (!('DOMPoint' in globalThis)) {
-    // Fields declared rather than passed as parameter properties, which
-    // erasableSyntaxOnly bans.
-    class StubPoint {
-      x: number
-      y: number
-      constructor(x: number, y: number) {
-        this.x = x
-        this.y = y
-      }
-      matrixTransform(): StubPoint {
-        return this
-      }
-    }
-    Object.defineProperty(globalThis, 'DOMPoint', { configurable: true, value: StubPoint })
-  }
-})
+// The identity getScreenCTM and DOMPoint stubs the drag path needs live in
+// src/test/setup.ts, because the pan path needs exactly the same two.
 
 const WORKSTATION = 'mac:00:1a:2b:3c:4d:5e'
 

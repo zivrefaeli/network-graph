@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { render } from '@testing-library/react'
+import { beforeEach, describe, expect, it } from 'vitest'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { sampleCapture } from '@/api/mock'
 import { DetailsPanel } from '@/components/DetailsPanel'
 import type { Selection } from '@/types/graph'
@@ -10,7 +10,7 @@ import type { Selection } from '@/types/graph'
  * the failure this catches -- a panel that silently prints NaN for a byte
  * count is worse than one that throws.
  */
-function renderSelection(selection: Selection): string {
+function renderSelection(selection: NonNullable<Selection>): string {
   const { container } = render(
     <DetailsPanel doc={sampleCapture} selection={selection} onSelect={() => {}} />,
   )
@@ -19,9 +19,33 @@ function renderSelection(selection: Selection): string {
   return text
 }
 
+beforeEach(() => {
+  window.localStorage.clear()
+})
+
 describe('DetailsPanel', () => {
-  it('renders the empty state with no selection', () => {
-    expect(renderSelection(null)).toMatch(/Click a machine/)
+  it('folds to a rail without losing what is selected', () => {
+    // Wanting the canvas back is not the same as being done with the
+    // selection, so this is a fold rather than a close.
+    const { container } = render(
+      <DetailsPanel
+        doc={sampleCapture}
+        selection={{ kind: 'machine', id: 'mac:00:1a:2b:3c:4d:5e' }}
+        onSelect={() => {}}
+      />,
+    )
+    // The machine's own name is on several rows, so this asks the heading.
+    const heading = container.querySelector('.panel h2')
+    expect(heading?.textContent).toBe('workstation-01')
+    expect(heading).toBeVisible()
+
+    fireEvent.click(screen.getByRole('button', { name: /hide the details panel/i }))
+
+    expect(screen.getByRole('button', { name: /show the details panel/i })).toBeTruthy()
+    expect(container.querySelector('.panel h2')).not.toBeVisible()
+    // Folded, it still says what it is and still knows what is selected.
+    expect(screen.getByText('Details')).toBeVisible()
+    expect(container.querySelector('.panel h2')?.textContent).toBe('workstation-01')
   })
 
   it('renders every machine in the document', () => {

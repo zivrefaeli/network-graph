@@ -34,6 +34,7 @@ code {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
 }
 
 .app-head {
@@ -469,14 +470,32 @@ code {
 }
 
 @media (max-width: 900px) {
+  /* The panel leaves the flow and rides over the canvas, so the graph keeps
+     the whole screen and you can still see the circle you just tapped. */
   .app-body {
-    flex-direction: column;
+    position: relative;
   }
 
   .panel {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
     width: auto;
+    max-height: 55dvh;
     border-left: none;
     border-top: 1px solid var(--line);
+    border-radius: 12px 12px 0 0;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.45);
+    /* Clear of the home indicator on phones that have one. */
+    padding: 16px 18px calc(28px + env(safe-area-inset-bottom));
+    /* Scrolling to the end of the sheet must not then drag the page. */
+    overscroll-behavior: contain;
+  }
+
+  .panel-collapsed {
+    max-height: none;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
   }
 }
 
@@ -725,4 +744,219 @@ code {
 .upload-progress::-moz-progress-bar {
   background: var(--host);
   border-radius: 2px;
+}
+
+/* ---------- panning, zooming, and collapsible chrome ---------- */
+
+/* Author rules beat the UA stylesheet whatever their specificity, so a bare
+   `display` on a collapsible element -- .legend ul below -- would quietly
+   re-show it while the attribute still said hidden. jsdom checks the attribute
+   rather than the cascade, so no test would catch it either. */
+[hidden] {
+  display: none !important;
+}
+
+.graph-bg {
+  cursor: grab;
+}
+
+.graph-bg:active {
+  cursor: grabbing;
+}
+
+.viewport-controls {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(22, 28, 36, 0.9);
+}
+
+.viewport-controls button {
+  min-width: 30px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.viewport-controls button:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.viewport-controls button:focus-visible,
+.collapse-toggle:focus-visible {
+  outline: 2px solid var(--host);
+  outline-offset: 1px;
+}
+
+.collapse-toggle {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.collapse-toggle:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* The legend is a <section> now, so the list carries the old flex column and
+   the card keeps the same shape whether it is open or folded to its header. */
+.legend {
+  display: block;
+  padding: 8px 12px 10px;
+}
+
+.legend-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.legend-head h2 {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.legend ul {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 300px;
+}
+
+.panel-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.panel-bar-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+/* Folded, the panel is a rail: wide enough for the toggle and its label,
+   narrow enough that the canvas gets the rest. The selection is untouched. */
+.panel-collapsed {
+  width: auto;
+  padding: 14px 10px;
+  overflow: hidden;
+}
+
+.panel-collapsed .panel-bar {
+  flex-direction: column-reverse;
+  align-items: center;
+  justify-content: flex-start;
+  height: 100%;
+  gap: 10px;
+}
+
+.panel-collapsed .panel-bar-title {
+  writing-mode: vertical-rl;
+}
+
+@media (max-width: 900px) {
+  /* Stacked, a vertical rail would be a tall empty column. */
+  .panel-collapsed .panel-bar {
+    flex-direction: row;
+    height: auto;
+  }
+
+  .panel-collapsed .panel-bar-title {
+    writing-mode: horizontal-tb;
+  }
+}
+
+/* ---------- small screens and touch ---------- */
+
+@media (max-width: 900px) {
+  .app-head {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  /* The stats read as a paragraph rather than one line off the side. */
+  .capture-line {
+    flex-wrap: wrap;
+  }
+
+  /* Full width under the title beats being squeezed beside it. */
+  .upload {
+    width: 100%;
+    max-width: none;
+    align-items: stretch;
+  }
+
+  /* Bottom left is where the sheet lives now, so the legend moves up. The
+     controls hold the opposite corner and it stops short of them. */
+  .legend {
+    top: 12px;
+    left: 12px;
+    bottom: auto;
+    max-width: calc(100% - 90px);
+  }
+
+  /* A row of four finger-sized buttons is most of a phone's width; a column
+     down the corner is not. */
+  .viewport-controls {
+    flex-direction: column;
+    top: 12px;
+    right: 12px;
+  }
+}
+
+/* Fingers, not cursors: 44px is the smallest target that can be hit reliably.
+   Keyed off the input device rather than the width, so a small window on a
+   desktop keeps the compact controls and a large touchscreen does not. */
+@media (pointer: coarse) {
+  .viewport-controls button {
+    min-width: 44px;
+    height: 44px;
+  }
+
+  .collapse-toggle {
+    width: 44px;
+    height: 44px;
+    font-size: 16px;
+  }
+
+  .upload-button,
+  .ghost-button {
+    padding: 12px 16px;
+  }
 }
