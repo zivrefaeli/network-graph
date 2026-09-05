@@ -143,13 +143,46 @@ class _EdgeAcc:
     services: dict[tuple[str, int], ServiceAcc] = field(default_factory=dict)
 
 
+#: SLAAC fixes the interface identifier at 64 bits (RFC 4291), so an address
+#: observed on-link places its whole /64 on-link with it.
+_ON_LINK_PREFIX_BITS = 64
+
+
+@dataclass(frozen=True, slots=True)
+class Segment:
+    """The captured broadcast domain: what is on it, and what covers it.
+
+    ``addresses`` is what ARP, NDP and DHCP named outright. ``on_link_prefixes``
+    is the v6 generalisation of that, and it is load-bearing rather than a
+    convenience -- see :func:`_on_link_prefixes`.
+    """
+
+    addresses: frozenset[str]
+    on_link_prefixes: frozenset[ipaddress.IPv6Network]
+
+    def holds(self, text: str) -> bool:
+        """Whether this exact address was named in ARP, NDP or DHCP."""
+        return text in self.addresses
+
+    def covers(self, address: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+        """Whether a learned on-link prefix contains this address.
+
+        v6 only. A v4 host on this segment is already caught by ``is_private``,
+        because v4 hosts sit behind NAT -- and that is exactly the assumption
+        which does not carry over.
+        """
+        return isinstance(address, ipaddress.IPv6Address) and any(
+            address in prefix for prefix in self.on_link_prefixes
+        )
+
+
 def build_document(records: Iterable[PacketRecord], meta: CaptureMeta) -> CaptureDocument:
     """Turn decoded packets into the document described in README.md."""
     packets = list(records)
     if not packets:
         raise ValueError("the capture contained no frames this tool could read")
 
-    segment = _addresses_on_segment(packets)
+    segment = _segment_of(packets)
     router_macs = _router_macs(packets, segment)
 
     state = _Aggregator(meta, segment, router_macs)
@@ -158,8 +191,8 @@ def build_document(records: Iterable[PacketRecord], meta: CaptureMeta) -> Captur
     return state.finish(packet_count=len(packets))
 
 
-def _addresses_on_segment(packets: Iterable[PacketRecord]) -> set[str]:
-    """Addresses that appeared in ARP or NDP.
+def _segment_of(packets: Iterable[PacketRecord]) -> Segment:
+    """What ARP, NDP and DHCP said is on this broadcast domain.
 
     Those protocols do not cross a router, so anything named in one is on the
     captured segment by construction. This is the strongest locality evidence
@@ -168,18 +201,49 @@ def _addresses_on_segment(packets: Iterable[PacketRecord]) -> set[str]:
     found: set[str] = set()
     for record in packets:
         for address in (
-            # Any opcode: a request's "tell 192.168.1.20" places the sender on
+            # Any opcode: a request's "tell 10.20.30.20" places the sender on
             # this segment exactly as a reply does.
             record.arp_sender_ip,
             record.ndp_advertised_ip,
+            # A solicitation is only ever sent for an on-link target, so it is
+            # presence evidence even though it binds nothing.
+            record.ndp_solicited_ip,
             record.dhcp_assigned_ip,
         ):
             if address:
                 found.add(address)
-    return found
+    return Segment(frozenset(found), _on_link_prefixes(found))
 
 
-def _router_macs(packets: Iterable[PacketRecord], segment: set[str]) -> set[str]:
+def _on_link_prefixes(addresses: Iterable[str]) -> frozenset[ipaddress.IPv6Network]:
+    """The /64s of the v6 addresses observed on this segment.
+
+    This is the half of locality that IPv4 never needed. There is no NAT in
+    IPv6, so a host's ordinary address is a *global unicast* address: judging
+    locality by ``is_private`` marks every v6 host on the segment off-segment,
+    and :func:`_router_macs` then reads each one as a gateway, because sourcing
+    frames for an off-segment address is precisely what a router does.
+
+    Neighbour discovery names only on-link addresses, and SLAAC fixes the
+    prefix at /64, so the /64 of an address seen in NDP is on-link too. That
+    generalises the evidence to the neighbours whose own addresses never
+    appeared in a solicitation -- which, in a short capture, is most of them.
+
+    Link-local is skipped: fe80::/64 is on-link everywhere by definition and is
+    already handled as such, so learning it would add nothing.
+    """
+    prefixes: set[ipaddress.IPv6Network] = set()
+    for text in addresses:
+        parsed = parse_address(text)
+        if not isinstance(parsed, ipaddress.IPv6Address):
+            continue
+        if parsed.is_link_local or parsed.is_multicast or parsed.is_loopback:
+            continue
+        prefixes.add(ipaddress.IPv6Network((parsed, _ON_LINK_PREFIX_BITS), strict=False))
+    return frozenset(prefixes)
+
+
+def _router_macs(packets: Iterable[PacketRecord], segment: Segment) -> set[str]:
     """MACs that forwarded traffic for addresses that are not on this segment.
 
     Only a router does that. Identifying it here is what lets the binding rule
@@ -214,11 +278,13 @@ def _router_macs(packets: Iterable[PacketRecord], segment: set[str]) -> set[str]
 
 
 def _is_off_segment(
-    address: ipaddress.IPv4Address | ipaddress.IPv6Address, text: str, segment: set[str]
+    address: ipaddress.IPv4Address | ipaddress.IPv6Address, text: str, segment: Segment
 ) -> bool:
-    if text in segment:
+    if segment.holds(text):
         return False
     if address.is_multicast or address.is_loopback or address.is_link_local:
+        return False
+    if segment.covers(address):
         return False
     return not address.is_private
 
@@ -226,7 +292,7 @@ def _is_off_segment(
 class _Aggregator:
     """One pass over the packets, tallying into the accumulators above."""
 
-    def __init__(self, meta: CaptureMeta, segment: set[str], router_macs: set[str]) -> None:
+    def __init__(self, meta: CaptureMeta, segment: Segment, router_macs: set[str]) -> None:
         self._meta = meta
         self._segment = segment
         self._router_macs = router_macs
@@ -268,12 +334,12 @@ class _Aggregator:
         ):
             if not mac:
                 continue
-            key = _machine_key(mac, record.vlan_id)
+            key = _machine_key(mac, _vlan_of(record))
             machine = self._machines.get(key)
             if machine is None:
                 self._machines[key] = _MachineAcc(
                     mac=mac,
-                    vlan_id=record.vlan_id,
+                    vlan_id=_vlan_of(record),
                     window=Window.at(record.epoch_ns),
                     vendor=vendor,
                 )
@@ -281,7 +347,7 @@ class _Aggregator:
                 machine.window.extend(record.epoch_ns)
                 if machine.vendor is None and vendor is not None:
                     machine.vendor = vendor
-            self._vlans_per_mac.setdefault(mac, set()).add(record.vlan_id)
+            self._vlans_per_mac.setdefault(mac, set()).add(_vlan_of(record))
 
     def _note_bindings(self, record: PacketRecord) -> None:
         """Record every address-to-machine assertion this frame carried.
@@ -310,7 +376,7 @@ class _Aggregator:
             if acc is None:
                 continue
             acc.sourced_from_macs.add(mac)
-            key = _machine_key(mac, record.vlan_id)
+            key = _machine_key(mac, _vlan_of(record))
             existing = acc.bindings.get(key)
             if existing is None:
                 acc.bindings[key] = _BindingAcc(basis, Window.at(record.epoch_ns))
@@ -328,14 +394,24 @@ class _Aggregator:
         internet would bind to the gateway, which is the exact bug the L3
         design exists to avoid.
         """
-        if address in self._segment:
+        if self._segment.holds(address):
             return True
         parsed = parse_address(address)
         if parsed is None or parsed.is_multicast:
             return False
+        # A link-local address is never forwarded, so the L2 sender *is* the L3
+        # source. That holds even when the sender is the router, and testing it
+        # before the guard below is what lets a router keep its own fe80::
+        # address rather than end up with none at all.
+        if parsed.is_link_local:
+            return True
+        # An on-link prefix is observed evidence, so it outranks the guard for
+        # the same reason an ARP-named address does.
+        if self._segment.covers(parsed):
+            return True
         if mac in self._router_macs:
             return False
-        return parsed.is_private or parsed.is_link_local
+        return parsed.is_private
 
     def _note_hostnames(self, record: PacketRecord) -> None:
         for claim in record.hostnames:
@@ -358,7 +434,7 @@ class _Aggregator:
             self._addresses[text] = acc
         else:
             acc.window.extend(epoch_ns)
-        if text in self._segment:
+        if self._segment.holds(text):
             acc.seen_on_segment = True
         return acc
 
@@ -485,6 +561,7 @@ class _Aggregator:
             text: classify_locality(
                 parsed,
                 on_segment=acc.seen_on_segment,
+                on_link_prefix=self._segment.covers(parsed),
                 bound_to_non_router=bool(acc.sourced_from_macs - self._router_macs),
             )
             for text, acc in self._addresses.items()
@@ -707,6 +784,17 @@ class _Aggregator:
 
     def _stamp(self, epoch_ns: int) -> str:
         return format_rfc3339(epoch_ns, digits=self._meta.timestamp_digits)
+
+
+def _vlan_of(record: PacketRecord) -> int | None:
+    """The VLAN this frame belongs to, or None when it carries none.
+
+    802.1Q with VID 0 is a *priority* tag: it asserts a priority and claims no
+    VLAN membership. Reading it as VLAN 0 splits one host into two machines,
+    one per tag, which is the address fragmentation the machine model exists to
+    prevent.
+    """
+    return record.vlan_id or None
 
 
 def _machine_key(mac: str, vlan_id: int | None) -> str:

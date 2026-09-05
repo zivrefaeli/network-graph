@@ -5,6 +5,8 @@ point of keeping ``app/aggregation`` pure: the rules that decide whether the
 graph tells the truth are testable without a capture file.
 """
 
+from dataclasses import replace
+
 import pytest
 
 from app.aggregation.build import CaptureMeta, build_document
@@ -17,11 +19,32 @@ MAC_NAS = "00:11:32:8a:c4:7d"
 MAC_RANDOM = "6a:3f:11:9d:02:c8"  # locally administered bit set
 MAC_BROADCAST = "ff:ff:ff:ff:ff:ff"
 
-PC = "192.168.1.50"
-ROUTER = "192.168.1.1"
-NAS = "192.168.1.20"
-REMOTE = "93.184.216.34"
-OTHER_REMOTE = "203.0.113.9"
+# These are not free to change, and in particular they cannot be moved into the
+# reserved documentation ranges. Locality branches on ``is_private``, and
+# CPython reports *every* documentation range as private -- RFC 5737's
+# 192.0.2/198.51.100/203.0.113, RFC 3849's 2001:db8::/32, and RFC 9637's
+# 3fff::/20 alike. Putting REMOTE or PC_V6 in one would make the gateway tests
+# pass against the very bug they exist to catch.
+#
+# So: hosts on the segment are RFC 1918, and anything standing in for the
+# public internet is genuinely non-private. The v6 addresses use 4000::/3,
+# which IANA has never allocated -- the only range that is both reserved and
+# non-private, and so the only one that is safe and correct at once.
+PC = "10.20.30.50"
+ROUTER = "10.20.30.1"
+NAS = "10.20.30.20"
+REMOTE = "96.7.128.175"
+OTHER_REMOTE = "23.215.0.136"
+
+# IPv6 has no NAT, so a host's ordinary address is globally routable. PC_V6 and
+# NAS_V6 share the on-link /64; REMOTE_V6 deliberately does not, because
+# learning that prefix from the NAS is what has to carry the PC.
+PC_V6 = "4001:db8:aced:1::50"
+NAS_V6 = "4001:db8:aced:1::20"
+REMOTE_V6 = "4001:db8:ffff::10"
+# The EUI-64 forms of MAC_PC and MAC_ROUTER above.
+PC_LINK_LOCAL = "fe80::21a:2bff:fe3c:4d5e"
+ROUTER_LINK_LOCAL = "fe80::cad7:19ff:fe04:aa31"
 
 BASE_NS = 1_788_513_300_123_456_789
 
@@ -95,6 +118,53 @@ def arp_reply(clock: Clock, *, mac: str, ip: str, to_mac: str = MAC_BROADCAST) -
     )
 
 
+def ip6_packet(
+    clock: Clock,
+    *,
+    eth_src: str,
+    eth_dst: str,
+    ip_src: str,
+    ip_dst: str,
+    frame_len: int = 120,
+    payload_len: int = 40,
+) -> PacketRecord:
+    return PacketRecord(
+        number=0,
+        epoch_ns=clock.tick(),
+        frame_len=frame_len,
+        eth_src=eth_src,
+        eth_dst=eth_dst,
+        ip_src=ip_src,
+        ip_dst=ip_dst,
+        ip_version=6,
+        transport="tcp",
+        src_port=40000,
+        dst_port=443,
+        payload_len=payload_len,
+        protocols=("eth", "ethertype", "ipv6", "tcp"),
+    )
+
+
+def ndp_solicitation(clock: Clock, *, mac: str, ip_src: str, target: str) -> PacketRecord:
+    """A neighbour solicitation, which is only ever sent for an on-link target.
+
+    It names no MAC for that target -- the link-layer option in a solicitation
+    is the *sender's* -- so this is presence evidence, never a binding.
+    """
+    return PacketRecord(
+        number=0,
+        epoch_ns=clock.tick(),
+        frame_len=86,
+        eth_src=mac,
+        eth_dst="33:33:ff:00:00:01",
+        ip_src=ip_src,
+        ip_dst="ff02::1:ff00:1",
+        ip_version=6,
+        protocols=("eth", "ethertype", "ipv6", "icmpv6"),
+        ndp_solicited_ip=target,
+    )
+
+
 def node_of(document: CaptureDocument, address: str) -> Node:
     for node in document.nodes:
         if node.id == f"ip:{address}":
@@ -135,7 +205,7 @@ def edge_of(document: CaptureDocument, left: str, right: str) -> Edge:
 def small_lan() -> CaptureDocument:
     """One PC, a gateway, a NAS, and a conversation with the internet.
 
-    The last part is the one that matters: traffic to ``93.184.216.34`` is
+    The last part is the one that matters: traffic to ``96.7.128.175`` is
     L2-addressed to the gateway on the way out and arrives with the gateway's
     MAC on the way back.
     """
@@ -346,7 +416,7 @@ class TestTrafficRollsUp:
         # The case the frontend renders as one ring with two sub-circles, and
         # the one where a naive implementation counts a packet twice.
         clock = Clock()
-        vpn = "10.8.0.6"
+        vpn = "10.10.0.6"
         records = [
             arp_reply(clock, mac=MAC_PC, ip=PC),
             arp_reply(clock, mac=MAC_PC, ip=vpn),
@@ -400,8 +470,8 @@ class TestEdgesAreUndirected:
                 frame_len=100,
                 eth_src=MAC_PC,
                 eth_dst=MAC_NAS,
-                ip_src="2001:db8::1",
-                ip_dst="2001:db8::2",
+                ip_src="4001:db8:aced:2::1",
+                ip_dst="4001:db8:aced:2::2",
                 ip_version=6,
                 transport="tcp",
                 src_port=40000,
@@ -410,7 +480,7 @@ class TestEdgesAreUndirected:
             )
         ]
         document = build_document(records, META)
-        assert document.edges[0].id == "edge_ip-2001:db8::1_ip-2001:db8::2"
+        assert document.edges[0].id == "edge_ip-4001:db8:aced:2::1_ip-4001:db8:aced:2::2"
 
     def test_the_same_conversation_yields_one_edge_whoever_spoke_first(self) -> None:
         def document_for(first_speaker: str, second: str) -> CaptureDocument:
@@ -445,7 +515,7 @@ class TestEdgesAreUndirected:
         self, small_lan: CaptureDocument
     ) -> None:
         edge = edge_of(small_lan, PC, REMOTE)
-        # "ip:192.168.1.50" sorts before "ip:93.184.216.34", so forward really
+        # "ip:10.20.30.50" sorts before "ip:96.7.128.175", so forward really
         # is the PC's outbound direction here -- and the property under test is
         # that forward means endpoints[0] -> endpoints[1], nothing else.
         assert edge.endpoints[0] == f"ip:{PC}"
@@ -604,14 +674,14 @@ class TestServices:
 class TestScanDetection:
     def test_many_syns_and_no_syn_acks_is_visible(self) -> None:
         clock = Clock()
-        records = [arp_reply(clock, mac=MAC_RANDOM, ip="192.168.1.77")]
+        records = [arp_reply(clock, mac=MAC_RANDOM, ip="10.20.30.77")]
         for index, port in enumerate(range(20, 20 + 64)):
             records.append(
                 ip_packet(
                     clock,
                     eth_src=MAC_RANDOM,
                     eth_dst=MAC_PC,
-                    ip_src="192.168.1.77",
+                    ip_src="10.20.30.77",
                     ip_dst=PC,
                     src_port=40000 + index,
                     dst_port=port,
@@ -626,7 +696,7 @@ class TestScanDetection:
                     eth_src=MAC_PC,
                     eth_dst=MAC_RANDOM,
                     ip_src=PC,
-                    ip_dst="192.168.1.77",
+                    ip_dst="10.20.30.77",
                     src_port=port,
                     dst_port=40000 + index,
                     rst=True,
@@ -770,8 +840,8 @@ class TestMachineIdentity:
     def test_a_randomized_mac_gets_no_vendor(self) -> None:
         clock = Clock()
         records = [
-            arp_reply(clock, mac=MAC_RANDOM, ip="192.168.1.77"),
-            ip_packet(clock, eth_src=MAC_RANDOM, eth_dst=MAC_PC, ip_src="192.168.1.77", ip_dst=PC),
+            arp_reply(clock, mac=MAC_RANDOM, ip="10.20.30.77"),
+            ip_packet(clock, eth_src=MAC_RANDOM, eth_dst=MAC_PC, ip_src="10.20.30.77", ip_dst=PC),
         ]
         machine = machine_of(build_document(records, META), MAC_RANDOM)
         assert machine.properties.mac_is_randomized is True
@@ -806,7 +876,7 @@ class TestMachineIdentity:
             frame_len=100,
             eth_src=MAC_PC,
             eth_dst=MAC_NAS,
-            ip_src="10.0.0.5",
+            ip_src="10.20.31.5",
             ip_dst=NAS,
             ip_version=4,
             transport="tcp",
@@ -990,3 +1060,150 @@ class TestDocumentShape:
                 continue
             machine = next(m for m in small_lan.machines if m.id == node.machine_id)
             assert node.id in machine.node_ids
+
+
+class TestIPv6Locality:
+    """A v6 host on this segment is not a gateway.
+
+    Judging locality by ``is_private`` is an IPv4-with-NAT assumption. Under
+    IPv6 a host's ordinary address is a global unicast address, so that test
+    brands every v6 host on the segment a router: each one sources frames whose
+    address is not RFC 1918, which is the same evidence that legitimately
+    identifies the real gateway.
+    """
+
+    @pytest.fixture
+    def v6_lan(self) -> CaptureDocument:
+        clock = Clock()
+        return build_document(
+            [
+                arp_reply(clock, mac=MAC_ROUTER, ip=ROUTER),
+                arp_reply(clock, mac=MAC_PC, ip=PC),
+                # The only on-link evidence for the /64, and it names the NAS,
+                # not the PC. Learning the prefix is what has to carry the PC.
+                ndp_solicitation(clock, mac=MAC_ROUTER, ip_src=ROUTER_LINK_LOCAL, target=NAS_V6),
+                # The PC talking to the internet over v6, both directions.
+                ip6_packet(
+                    clock,
+                    eth_src=MAC_PC,
+                    eth_dst=MAC_ROUTER,
+                    ip_src=PC_V6,
+                    ip_dst=REMOTE_V6,
+                ),
+                ip6_packet(
+                    clock,
+                    eth_src=MAC_ROUTER,
+                    eth_dst=MAC_PC,
+                    ip_src=REMOTE_V6,
+                    ip_dst=PC_V6,
+                ),
+                # The NAS, whose address the solicitation above named. It is
+                # here so there is something to check the solicitation did not
+                # mis-attribute.
+                ip6_packet(
+                    clock,
+                    eth_src=MAC_NAS,
+                    eth_dst=MAC_ROUTER,
+                    ip_src=NAS_V6,
+                    ip_dst=REMOTE_V6,
+                ),
+            ],
+            META,
+        )
+
+    def test_a_v6_host_talking_to_the_internet_is_not_a_router(
+        self, v6_lan: CaptureDocument
+    ) -> None:
+        assert node_of(v6_lan, PC).node_type == "host"
+        assert node_of(v6_lan, PC_V6).node_type == "host"
+
+    def test_a_global_address_inside_an_on_link_prefix_is_local(
+        self, v6_lan: CaptureDocument
+    ) -> None:
+        node = node_of(v6_lan, PC_V6)
+        assert node.properties.is_local is True
+        assert node.inference is not None
+        assert node.inference.is_local_basis == "inside_an_on_link_ipv6_prefix"
+
+    def test_that_address_belongs_to_the_machine_that_sourced_it(
+        self, v6_lan: CaptureDocument
+    ) -> None:
+        # Without this the PC's v6 identity renders as a stranger on the
+        # internet while its v4 address sits in the machine it came from.
+        assert node_of(v6_lan, PC_V6).machine_id == f"mac:{MAC_PC}"
+        assert f"ip:{PC_V6}" in machine_of(v6_lan, MAC_PC).node_ids
+
+    def test_the_real_gateway_is_still_a_router(self, v6_lan: CaptureDocument) -> None:
+        # The guard must not be so wide that it stops detecting the thing it
+        # was written for: MAC_ROUTER forwarded an address outside every
+        # on-link prefix, and nothing else here did.
+        assert node_of(v6_lan, ROUTER).node_type == "router"
+
+    def test_an_address_outside_every_on_link_prefix_stays_external(
+        self, v6_lan: CaptureDocument
+    ) -> None:
+        remote = node_of(v6_lan, REMOTE_V6)
+        assert remote.node_type == "external"
+        assert remote.properties.is_local is False
+        assert remote.machine_id is None
+
+    def test_a_solicitation_does_not_bind_its_target_to_the_sender(
+        self, v6_lan: CaptureDocument
+    ) -> None:
+        # The link-layer option in a solicitation is the sender's, not the
+        # target's. The router solicited NAS_V6; treating that as a binding
+        # would hand the NAS's address to the gateway.
+        assert node_of(v6_lan, NAS_V6).machine_id == f"mac:{MAC_NAS}"
+
+
+class TestLinkLocalBinding:
+    def test_a_routers_own_link_local_binds_to_it(self) -> None:
+        # The router guard on source_mac evidence exists to stop public
+        # addresses binding to the gateway. A link-local address is never
+        # forwarded, so the L2 sender *is* the L3 source -- even when that
+        # sender is the router.
+        clock = Clock()
+        document = build_document(
+            [
+                arp_reply(clock, mac=MAC_ROUTER, ip=ROUTER),
+                arp_reply(clock, mac=MAC_PC, ip=PC),
+                ip_packet(
+                    clock,
+                    eth_src=MAC_ROUTER,
+                    eth_dst=MAC_PC,
+                    ip_src=REMOTE,
+                    ip_dst=PC,
+                ),
+                ip6_packet(
+                    clock,
+                    eth_src=MAC_ROUTER,
+                    eth_dst=MAC_PC,
+                    ip_src=ROUTER_LINK_LOCAL,
+                    ip_dst=PC_LINK_LOCAL,
+                ),
+            ],
+            META,
+        )
+        assert node_of(document, ROUTER_LINK_LOCAL).machine_id == f"mac:{MAC_ROUTER}"
+
+
+class TestPriorityTagging:
+    def test_a_vlan_id_of_zero_is_not_a_second_machine(self) -> None:
+        # 802.1Q with VID 0 is a priority tag: it carries no VLAN membership,
+        # so it must not split one host into two machines.
+        clock = Clock()
+        tagged = replace(
+            ip_packet(clock, eth_src=MAC_PC, eth_dst=MAC_ROUTER, ip_src=PC, ip_dst=REMOTE),
+            vlan_id=0,
+        )
+        document = build_document(
+            [
+                arp_reply(clock, mac=MAC_PC, ip=PC),
+                tagged,
+                ip_packet(clock, eth_src=MAC_PC, eth_dst=MAC_ROUTER, ip_src=PC, ip_dst=REMOTE),
+            ],
+            META,
+        )
+        assert [m.id for m in document.machines if m.id.startswith(f"mac:{MAC_PC}")] == [
+            f"mac:{MAC_PC}"
+        ]

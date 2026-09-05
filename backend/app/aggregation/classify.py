@@ -89,20 +89,29 @@ def classify_locality(
     address: ipaddress.IPv4Address | ipaddress.IPv6Address,
     *,
     on_segment: bool,
+    on_link_prefix: bool,
     bound_to_non_router: bool,
 ) -> Locality:
     """Decide locality, strongest evidence first.
 
     ``on_segment`` means the address appeared in ARP or NDP, which only travel
-    within one broadcast domain -- the strongest signal there is. Failing that,
-    a private address that was seen sourcing frames from a MAC that is *not*
-    the router's is local too.
+    within one broadcast domain -- the strongest signal there is.
+    ``on_link_prefix`` is the same evidence one step generalised: the address
+    sits inside a /64 that neighbour discovery showed to be on-link. Failing
+    both, a private address that was seen sourcing frames from a MAC that is
+    *not* the router's is local too.
 
-    The router guard is the load-bearing half. Every packet arriving from the
-    internet carries the router's MAC as its *source*, so "was seen as a source
-    with a MAC" on its own would mark the whole internet local and attribute it
-    to the gateway. README.md says binding is source-side only; source-side is
-    necessary but not sufficient, and this is the missing half.
+    ``is_private`` alone is an IPv4-with-NAT test and is the weakest rung here
+    for that reason. IPv6 hosts hold global unicast addresses, so without the
+    prefix rung above they would all be judged remote -- and the hosts sourcing
+    them would all be judged routers.
+
+    The router guard is the load-bearing half of the last rung. Every packet
+    arriving from the internet carries the router's MAC as its *source*, so
+    "was seen as a source with a MAC" on its own would mark the whole internet
+    local and attribute it to the gateway. README.md says binding is
+    source-side only; source-side is necessary but not sufficient, and this is
+    the missing half.
     """
     if address.is_loopback:
         return Locality(True, "loopback")
@@ -110,6 +119,8 @@ def classify_locality(
         return Locality(False, "multicast_group_not_a_host")
     if on_segment:
         return Locality(True, "observed_in_arp_or_ndp_on_this_segment")
+    if on_link_prefix:
+        return Locality(True, "inside_an_on_link_ipv6_prefix")
     if address.is_link_local:
         return Locality(True, "link_local_by_definition")
     if address.is_private and bound_to_non_router:

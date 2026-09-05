@@ -74,12 +74,12 @@ conversations attach to the address that carried them.
               ┌─────────────────────────────┐
               │       workstation-01        │   machine  mac:00:1a:2b:3c:4d:5e
               │                             │   container -- sized to fit, NOT
-   192.168.1.1├──● 192.168.1.50             │   a volume encoding
+   10.20.30.1├──● 10.20.30.50             │   a volume encoding
    (gateway)  │                             │
-   192.168.1.20──●                          │
+   10.20.30.20──●                          │
               │                             │
-              │            ● 10.8.0.6 ──────┼── 10.8.0.1   (the VPN tunnel)
-              │                       └─────┼── 93.184.216.34
+              │            ● 10.10.0.6 ──────┼── 10.10.0.1   (the VPN tunnel)
+              │                       └─────┼── 96.7.128.175
               └─────────────────────────────┘
 
    ● sub-circle = one address. Area = packets. Edges land here.

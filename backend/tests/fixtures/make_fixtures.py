@@ -26,11 +26,11 @@ MAC_NAS = "00:11:32:8a:c4:7d"
 MAC_SCANNER = "6a:3f:11:9d:02:c8"  # locally administered: a randomized MAC
 MAC_BROADCAST = "ff:ff:ff:ff:ff:ff"
 
-IP_WORKSTATION = "192.168.1.50"
-IP_GATEWAY = "192.168.1.1"
-IP_NAS = "192.168.1.20"
-IP_SCANNER = "192.168.1.77"
-IP_REMOTE = "93.184.216.34"
+IP_WORKSTATION = "10.20.30.50"
+IP_GATEWAY = "10.20.30.1"
+IP_NAS = "10.20.30.20"
+IP_SCANNER = "10.20.30.77"
+IP_REMOTE = "96.7.128.175"
 
 #: 2026-09-05T09:15:00Z, with nanoseconds that are not a whole microsecond so a
 #: microsecond-precision path would visibly truncate them.
@@ -220,7 +220,7 @@ def arpa_name(address: str) -> str:
 def build_tiny() -> list[tuple[bytes, int]]:
     """A small, complete segment: ARP, a LAN transfer, DNS, and the internet.
 
-    The load-bearing part is the last group. Traffic to ``93.184.216.34`` is
+    The load-bearing part is the last group. Traffic to ``96.7.128.175`` is
     L2-addressed to the gateway, so an implementation that terminated edges on
     MACs would show the gateway holding all of it. Here it must appear as a
     conversation between the workstation and the remote address, with the

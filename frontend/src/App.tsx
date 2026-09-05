@@ -58,7 +58,11 @@ export function App() {
           <Graph doc={doc} selection={selection} onSelect={setSelection} />
           <Legend />
         </div>
-        <DetailsPanel doc={doc} selection={selection} onSelect={setSelection} />
+        {/* No selection, no panel: the canvas takes the width back rather than
+            spending it on a paragraph explaining that nothing is selected. */}
+        {selection !== null && (
+          <DetailsPanel doc={doc} selection={selection} onSelect={setSelection} />
+        )}
       </main>
     </div>
   )
