@@ -222,8 +222,8 @@ class TestStore:
                         clock,
                         eth_src="00:1a:2b:3c:4d:5e",
                         eth_dst="00:11:32:8a:c4:7d",
-                        ip_src="192.168.1.50",
-                        ip_dst="192.168.1.20",
+                        ip_src="10.20.30.50",
+                        ip_dst="10.20.30.20",
                     )
                 ],
                 meta,

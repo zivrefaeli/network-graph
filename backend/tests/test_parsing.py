@@ -75,8 +75,8 @@ class TestDecode:
                 "frame.protocols": "eth:ethertype:ip:tcp:tls",
                 "eth.src": "00:1a:2b:3c:4d:5e",
                 "eth.dst": "c8:d7:19:04:aa:31",
-                "ip.src": "192.168.1.50",
-                "ip.dst": "93.184.216.34",
+                "ip.src": "10.20.30.50",
+                "ip.dst": "96.7.128.175",
                 "tcp.srcport": "49602",
                 "tcp.dstport": "443",
                 "tcp.len": "1400",
@@ -103,8 +103,8 @@ class TestDecode:
                 "udp.srcport": "51514",
                 "udp.dstport": "53",
                 "udp.length": "52",
-                "ip.src": "192.168.1.50",
-                "ip.dst": "192.168.1.1",
+                "ip.src": "10.20.30.50",
+                "ip.dst": "10.20.30.1",
             }
         )
         assert record.transport == "udp"
@@ -133,23 +133,47 @@ class TestDecode:
             **{
                 "arp.opcode": "2",
                 "arp.src.hw_mac": "c8:d7:19:04:aa:31",
-                "arp.src.proto_ipv4": "192.168.1.1",
+                "arp.src.proto_ipv4": "10.20.30.1",
             },
         )
-        assert reply.arp_reply_ip == "192.168.1.1"
-        assert reply.arp_sender_ip == "192.168.1.1"
+        assert reply.arp_reply_ip == "10.20.30.1"
+        assert reply.arp_sender_ip == "10.20.30.1"
 
         request = one(
             **common,
             **{
                 "arp.opcode": "1",
                 "arp.src.hw_mac": "00:1a:2b:3c:4d:5e",
-                "arp.src.proto_ipv4": "192.168.1.50",
+                "arp.src.proto_ipv4": "10.20.30.50",
             },
         )
         # Still on this segment, but not an unprompted assertion of ownership.
-        assert request.arp_sender_ip == "192.168.1.50"
+        assert request.arp_sender_ip == "10.20.30.50"
         assert request.arp_reply_ip is None
+
+    def test_a_neighbor_solicitation_places_its_target_on_this_segment(self) -> None:
+        # Type 135. A solicitation is only ever sent for an on-link target, so
+        # it is the presence evidence that says a v6 prefix is on this segment.
+        record = one(
+            **{
+                "frame.number": "9",
+                "frame.time_epoch": "1788513300.123456",
+                "frame.len": "86",
+                "frame.protocols": "eth:ethertype:ipv6:icmpv6",
+                "eth.src": "00:1a:2b:3c:4d:5e",
+                "eth.dst": "33:33:ff:00:00:20",
+                "ipv6.src": "fe80::21a:2bff:fe3c:4d5e",
+                "ipv6.dst": "ff02::1:ff00:20",
+                "icmpv6.type": "135",
+                "icmpv6.nd.ns.target_address": "4001:db8:aced:1::20",
+                "icmpv6.opt.linkaddr": "00:1a:2b:3c:4d:5e",
+            }
+        )
+        assert record.ndp_solicited_ip == "4001:db8:aced:1::20"
+        # The link-layer option in a solicitation is the *sender's* address,
+        # not the target's, so it must not come out as a binding.
+        assert record.ndp_advertised_ip is None
+        assert record.ndp_advertised_mac is None
 
     def test_a_dhcp_ack_binds_the_leased_address(self) -> None:
         record = one(
@@ -158,11 +182,11 @@ class TestDecode:
                 "frame.time_epoch": "1.0",
                 "frame.len": "342",
                 "dhcp.option.dhcp": "5",
-                "dhcp.ip.your": "192.168.1.77",
+                "dhcp.ip.your": "10.20.30.77",
                 "dhcp.hw.mac_addr": "6a:3f:11:9d:02:c8",
             }
         )
-        assert record.dhcp_assigned_ip == "192.168.1.77"
+        assert record.dhcp_assigned_ip == "10.20.30.77"
         assert record.dhcp_assigned_mac == "6a:3f:11:9d:02:c8"
 
     def test_a_dhcp_offer_is_not_an_ack(self) -> None:
@@ -173,7 +197,7 @@ class TestDecode:
                 "frame.time_epoch": "1.0",
                 "frame.len": "342",
                 "dhcp.option.dhcp": "2",
-                "dhcp.ip.your": "192.168.1.77",
+                "dhcp.ip.your": "10.20.30.77",
                 "dhcp.hw.mac_addr": "6a:3f:11:9d:02:c8",
             }
         )
@@ -200,15 +224,15 @@ class TestDecode:
                 "frame.number": "1",
                 "frame.time_epoch": "1.0",
                 "frame.len": "571",
-                "ip.src": "192.168.1.50",
-                "ip.dst": "93.184.216.34",
+                "ip.src": "10.20.30.50",
+                "ip.dst": "96.7.128.175",
                 "tcp.srcport": "49602",
                 "tcp.dstport": "443",
                 "tls.handshake.extensions_server_name": "example.com",
             }
         )
         assert [(h.address, h.name, h.source) for h in record.hostnames] == [
-            ("93.184.216.34", "example.com", "tls_sni")
+            ("96.7.128.175", "example.com", "tls_sni")
         ]
 
     def test_a_ptr_answer_names_the_address_its_question_asked_about(self) -> None:
@@ -217,17 +241,17 @@ class TestDecode:
                 "frame.number": "1",
                 "frame.time_epoch": "1.0",
                 "frame.len": "137",
-                "ip.src": "192.168.1.1",
-                "ip.dst": "192.168.1.50",
+                "ip.src": "10.20.30.1",
+                "ip.dst": "10.20.30.50",
                 "udp.srcport": "53",
                 "udp.dstport": "51514",
                 "udp.length": "115",
-                "dns.qry.name": "34.216.184.93.in-addr.arpa",
+                "dns.qry.name": "175.128.7.96.in-addr.arpa",
                 "dns.ptr.domain_name": "example.com",
             }
         )
         # Not the sender, and not the recipient: the address the query encodes.
-        assert [(h.address, h.source) for h in record.hostnames] == [("93.184.216.34", "dns_ptr")]
+        assert [(h.address, h.source) for h in record.hostnames] == [("96.7.128.175", "dns_ptr")]
 
     def test_the_same_answer_over_mdns_is_labelled_mdns(self) -> None:
         record = one(
@@ -235,12 +259,12 @@ class TestDecode:
                 "frame.number": "1",
                 "frame.time_epoch": "1.0",
                 "frame.len": "137",
-                "ip.src": "192.168.1.20",
+                "ip.src": "10.20.30.20",
                 "ip.dst": "224.0.0.251",
                 "udp.srcport": "5353",
                 "udp.dstport": "5353",
                 "udp.length": "115",
-                "dns.qry.name": "34.216.184.93.in-addr.arpa",
+                "dns.qry.name": "175.128.7.96.in-addr.arpa",
                 "dns.ptr.domain_name": "nas-01.local",
             }
         )
@@ -252,8 +276,8 @@ class TestDecode:
                 "frame.number": "1",
                 "frame.time_epoch": "1.0",
                 "frame.len": "342",
-                "ip.src": "192.168.1.50",
-                "ip.dst": "192.168.1.1",
+                "ip.src": "10.20.30.50",
+                "ip.dst": "10.20.30.1",
                 "udp.srcport": "68",
                 "udp.dstport": "67",
                 "udp.length": "314",
@@ -261,7 +285,7 @@ class TestDecode:
             }
         )
         assert [(h.address, h.source) for h in record.hostnames] == [
-            ("192.168.1.50", "dhcp_option_12")
+            ("10.20.30.50", "dhcp_option_12")
         ]
 
     def test_a_repeated_field_takes_its_first_occurrence(self) -> None:
@@ -270,12 +294,12 @@ class TestDecode:
                 "frame.number": "1",
                 "frame.time_epoch": "1.0",
                 "frame.len": "100",
-                "ip.src": "192.168.1.50|10.0.0.1",
-                "ip.dst": "192.168.1.1",
+                "ip.src": "10.20.30.50|10.20.31.1",
+                "ip.dst": "10.20.30.1",
             }
         )
         # A tunnelled frame has two IP layers; the outer one is the conversation.
-        assert record.ip_src == "192.168.1.50"
+        assert record.ip_src == "10.20.30.50"
 
     def test_a_randomized_mac_gets_no_vendor_from_the_manuf_table(self) -> None:
         # Wireshark returns the bare OUI bytes when it has no entry. Those are

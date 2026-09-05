@@ -53,7 +53,7 @@ describe('parseCaptureDocument', () => {
     const edges = doc['edges'] as Record<string, unknown>[]
     const first = edges[0]
     if (first === undefined) throw new Error('expected an edge')
-    first['endpoints'] = ['ip:192.168.1.50', 'mac:c8:d7:19:04:aa:31']
+    first['endpoints'] = ['ip:10.20.30.50', 'mac:c8:d7:19:04:aa:31']
     expectRejected(doc, /l3 edge must terminate on two "ip:" nodes/)
   })
 
@@ -84,7 +84,7 @@ describe('parseCaptureDocument', () => {
     const edges = doc['edges'] as Record<string, unknown>[]
     const first = edges[0]
     if (first === undefined) throw new Error('expected an edge')
-    first['endpoints'] = ['ip:192.168.1.50', 'ip:192.168.1.1']
+    first['endpoints'] = ['ip:10.20.30.50', 'ip:10.20.30.1']
     expectRejected(doc, /endpoints must be sorted/)
   })
 
@@ -115,7 +115,7 @@ describe('parseCaptureDocument', () => {
     const nodes = doc['nodes'] as Record<string, unknown>[]
     const first = nodes[0]
     if (first === undefined) throw new Error('expected a node')
-    first['id'] = '192.168.1.50'
+    first['id'] = '10.20.30.50'
     expectRejected(doc, /id must be namespaced as "ip:<address>"/)
   })
 
@@ -125,7 +125,7 @@ describe('parseCaptureDocument', () => {
     const first = nodes[0]
     if (first === undefined) throw new Error('expected a node')
     nodes.push({ ...first })
-    expectRejected(doc, /duplicate id ip:192\.168\.1\.50/)
+    expectRejected(doc, /duplicate id ip:10\.20\.30\.50/)
   })
 
   it('reports a machine naming an address the document does not carry', () => {
@@ -133,8 +133,8 @@ describe('parseCaptureDocument', () => {
     const machines = doc['machines'] as Record<string, unknown>[]
     const first = machines[0]
     if (first === undefined) throw new Error('expected a machine')
-    first['node_ids'] = ['ip:192.168.1.50', 'ip:203.0.113.9']
-    expectRejected(doc, /node_ids names ip:203\.0\.113\.9, which is not in nodes\[\]/)
+    first['node_ids'] = ['ip:10.20.30.50', 'ip:23.215.0.136']
+    expectRejected(doc, /node_ids names ip:23\.215\.0\.136, which is not in nodes\[\]/)
   })
 
   it('reports an edge endpoint the document does not carry', () => {
@@ -142,8 +142,8 @@ describe('parseCaptureDocument', () => {
     const edges = doc['edges'] as Record<string, unknown>[]
     const first = edges[0]
     if (first === undefined) throw new Error('expected an edge')
-    first['endpoints'] = ['ip:192.168.1.50', 'ip:203.0.113.9']
-    expectRejected(doc, /endpoint ip:203\.0\.113\.9 is not in nodes\[\]/)
+    first['endpoints'] = ['ip:10.20.30.50', 'ip:23.215.0.136']
+    expectRejected(doc, /endpoint ip:23\.215\.0\.136 is not in nodes\[\]/)
   })
 
   it('allows a machine with no addresses at all', () => {

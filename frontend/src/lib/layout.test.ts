@@ -5,10 +5,10 @@ import type { Body } from '@/lib/layout'
 import type { AddressId, MachineId } from '@/types/graph'
 
 const WORKSTATION: MachineId = 'mac:00:1a:2b:3c:4d:5e'
-const LAN: AddressId = 'ip:192.168.1.50'
-const VPN: AddressId = 'ip:10.8.0.6'
+const LAN: AddressId = 'ip:10.20.30.50'
+const VPN: AddressId = 'ip:10.10.0.6'
 const GATEWAY: MachineId = 'mac:c8:d7:19:04:aa:31'
-const REMOTE: AddressId = 'ip:93.184.216.34'
+const REMOTE: AddressId = 'ip:96.7.128.175'
 
 function machineBody(bodies: readonly Body[], id: MachineId) {
   const body = bodies.find((candidate) => candidate.id === id)
@@ -117,7 +117,7 @@ describe('edgesForAddress', () => {
   })
 
   it('finds nothing for an address the document does not carry', () => {
-    expect(edgesForAddress(sampleCapture, 'ip:203.0.113.9')).toHaveLength(0)
+    expect(edgesForAddress(sampleCapture, 'ip:23.215.0.136')).toHaveLength(0)
   })
 })
 
@@ -133,7 +133,7 @@ describe('peerOf', () => {
   it('returns undefined for an address that is not on the edge', () => {
     const edge = edgesForAddress(sampleCapture, VPN).at(0)
     if (edge === undefined) throw new Error('expected an edge')
-    expect(peerOf(edge, 'ip:203.0.113.9')).toBeUndefined()
+    expect(peerOf(edge, 'ip:23.215.0.136')).toBeUndefined()
   })
 })
 

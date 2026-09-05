@@ -57,6 +57,7 @@ FIELDS: Final[tuple[str, ...]] = (
     "arp.src.hw_mac",
     "arp.src.proto_ipv4",
     "icmpv6.nd.na.target_address",
+    "icmpv6.nd.ns.target_address",
     "icmpv6.opt.linkaddr",
     "dhcp.option.dhcp",
     "dhcp.ip.your",
@@ -85,6 +86,10 @@ _NOT_L7: Final[frozenset[str]] = frozenset(
 #: A DHCP message type of 5 is ACK -- the point at which a lease is granted and
 #: an address is genuinely bound to a MAC.
 _DHCP_ACK: Final[str] = "5"
+
+#: ICMPv6 type 135, a Neighbor Solicitation. Type 136 is the advertisement that
+#: answers it, and only that one carries the target's own link-layer address.
+_NDP_SOLICITATION: Final[str] = "135"
 
 _UNSPECIFIED_IPV4: Final[str] = "0.0.0.0"  # noqa: S104 - compared against, never bound
 
@@ -331,7 +336,17 @@ def _with_bindings(record: PacketRecord, first: Getter) -> PacketRecord:
         else None
     )
 
-    if sender is None and arp is None and ndp is None and dhcp is None:
+    # Type 135 is a Neighbor Solicitation, and one is only ever sent for an
+    # on-link target -- so it places that address on this segment. It stays out
+    # of the binding pairs above on purpose: the link-layer option in a
+    # solicitation is the sender's address, not the target's.
+    solicited = (
+        first("icmpv6.nd.ns.target_address").strip()
+        if first("icmpv6.type") == _NDP_SOLICITATION
+        else ""
+    )
+
+    if sender is None and arp is None and ndp is None and dhcp is None and not solicited:
         return record
 
     return replace(
@@ -344,6 +359,7 @@ def _with_bindings(record: PacketRecord, first: Getter) -> PacketRecord:
         ndp_advertised_mac=ndp[1] if ndp else None,
         dhcp_assigned_ip=dhcp[0] if dhcp else None,
         dhcp_assigned_mac=dhcp[1] if dhcp else None,
+        ndp_solicited_ip=solicited or None,
     )
 
 
@@ -417,7 +433,7 @@ _ARPA_V4 = re.compile(r"^((?:\d{1,3}\.){4})in-addr\.arpa\.?$", re.IGNORECASE)
 
 
 def _address_from_arpa(query: str) -> str | None:
-    """``2.1.168.192.in-addr.arpa`` -> ``192.168.1.2``."""
+    """``2.30.20.10.in-addr.arpa`` -> ``10.20.30.2``."""
     match = _ARPA_V4.match(query.strip())
     if match is None:
         return None
