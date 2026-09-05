@@ -10,10 +10,15 @@ npm run build        # the type check, not just the bundle
 npm run test         # vitest
 ```
 
-`dist/` is committed, not ignored: GitHub Pages serves it straight from the
-repository with no build step in CI. So a change that should reach the
-published page needs `npm run build` run and the output committed alongside
-it.
+`npm run test` and `npm run build` run on every pull request
+([../.github/workflows/ci.yml](../.github/workflows/ci.yml)), alongside the
+backend's own gate.
+
+`dist/` is ignored, not committed: the Pages workflow
+([../.github/workflows/static.yml](../.github/workflows/static.yml)) runs
+`npm ci && npm run build` on the runner and uploads the output from there. So a
+change reaches the published page by landing on `main` -- a local `dist/` is
+yours alone, and pushing one is neither needed nor possible.
 
 The graph, the panel and `.json` uploads need no server. Dissecting a capture
 does, so for that:
@@ -48,7 +53,7 @@ deep as a `NaN`.
 
 ### No backend is a supported state
 
-The build published to GitHub Pages from `dist/` has no backend behind it, so
+The build published to GitHub Pages has no backend behind it, so
 "nothing is answering" is a normal condition rather than a failure:
 
 - The health strip says **No backend** and offers a retry.
@@ -160,8 +165,8 @@ src/
   api/               client.ts (the only place this app fetches), parse.ts
                      (the boundary), mock.ts (the sample document)
   components/        one per file, named for the file
-dist/                the build GitHub Pages serves. Committed, and written by
-                     `npm run build`; never edited by hand.
+dist/                the build GitHub Pages serves. Written by `npm run build`,
+                     git-ignored, and rebuilt by CI on every deploy.
 ```
 
 Imports are absolute through `@/`, which is declared twice: `paths` in

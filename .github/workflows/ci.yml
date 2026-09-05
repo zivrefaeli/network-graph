@@ -1,0 +1,87 @@
+# The pull-request gate. Everything CLAUDE.md lists under "before calling work
+# done" runs here, so a PR that would fail that checklist fails in CI first.
+#
+# The two sides are separate jobs on purpose: they share no tooling, and a
+# frontend type error should not hide a backend one behind a stopped run.
+name: CI
+
+on:
+  pull_request:
+  # Also on main, so the branch the Pages deploy builds from is known-good
+  # rather than only checked while a PR was open.
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push to the same PR makes the run in progress obsolete, so cancel it.
+# This is not the Pages deployment; nothing here is published.
+concurrency:
+  group: "ci-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          # Matches the version frontend/Dockerfile builds on.
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        # `ci`, not `install`: it installs exactly what package-lock.json pins
+        # and fails if the lock file and package.json have drifted.
+        run: npm ci
+      - name: Test
+        run: npm run test
+      - name: Build
+        # This is the type check as well as the bundle -- see package.json.
+        run: npm run build
+
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install tshark
+        # Dissection is a subprocess call to Wireshark's binary, so without it
+        # the parsing and API tests skip themselves and the suite passes while
+        # covering nothing. `install-setuid false` is preseeded because the
+        # wireshark-common postinst otherwise prompts about letting non-root
+        # users capture; this only ever reads capture files off disk.
+        run: |
+          echo "wireshark-common wireshark-common/install-setuid boolean false" \
+            | sudo debconf-set-selections
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y tshark
+          tshark --version | head -n 1
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - name: Sync
+        # `--locked` fails rather than updating uv.lock, so a lock file out of
+        # step with pyproject.toml is a CI failure and not a silent resolve.
+        run: uv sync --locked
+      - name: Ruff lint
+        run: uv run ruff check .
+      - name: Ruff format
+        run: uv run ruff format --check .
+      - name: Mypy
+        run: uv run mypy .
+      - name: Pytest
+        run: uv run pytest
