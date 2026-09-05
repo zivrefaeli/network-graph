@@ -89,7 +89,10 @@ export interface MachineProperties {
 }
 
 export interface MachineInference {
-  hostname_confidence?: number
+  // Null, not absent, when nothing named this machine. The backend serialises
+  // the key either way, so a `!== undefined` check here would let null through
+  // and render it as 0%.
+  hostname_confidence?: number | null
 }
 
 export interface Machine {
@@ -123,7 +126,7 @@ export interface AddressProperties {
 }
 
 export interface AddressInference {
-  is_local_basis?: string
+  is_local_basis?: string | null
   /**
    * Every binding observed, with its time range. More than one entry is not an
    * error to resolve by picking a winner -- it is DHCP reassignment, MAC

@@ -1,0 +1,60 @@
+# The local stack. The backend runs in a container because it needs tshark,
+# which is a Wireshark install rather than a Python package; the frontend runs
+# in one so the two come up together and the proxy target is a service name.
+#
+# Nothing in backend/app/aggregation or frontend/src/lib needs any of this --
+# both layers are pure and their tests run on a bare host.
+
+services:
+  backend:
+    build:
+      context: ./backend
+      target: dev
+    image: network-graph-backend:dev
+    ports:
+      - "8000:8000"
+    environment:
+      NG_TSHARK_BIN: tshark
+      NG_MAX_UPLOAD_BYTES: "2147483648"
+      # Left empty on purpose. The frontend reaches the backend through Vite's
+      # proxy, so every request is same-origin and no CORS header is needed.
+      # Set this only for a deployment where the browser calls the API directly.
+      NG_CORS_ORIGINS: "[]"
+    volumes:
+      # Source is mounted so an edit is picked up without a rebuild; the venv
+      # lives at /opt/venv and is deliberately outside the mount.
+      - ./backend/app:/srv/app:ro
+      - ./backend/tests:/srv/tests:ro
+    command:
+      - uvicorn
+      - app.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --reload
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+      target: dev
+    image: network-graph-frontend:dev
+    ports:
+      - "5173:5173"
+    environment:
+      # Where Vite forwards /api. A service name, not localhost: inside the
+      # network, localhost is this container.
+      VITE_PROXY_TARGET: http://backend:8000
+    volumes:
+      - ./frontend/src:/srv/src:ro
+      - ./frontend/index.html:/srv/index.html:ro
+      - ./frontend/vite.config.ts:/srv/vite.config.ts:ro
+    depends_on:
+      backend:
+        condition: service_healthy

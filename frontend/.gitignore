@@ -1,3 +1,6 @@
 node_modules
-dist
 *.local
+
+# dist/ is deliberately NOT ignored. GitHub Pages serves it straight from the
+# repository, so the built output is committed. Rebuild with `npm run build`
+# before pushing anything that should reach the published page.

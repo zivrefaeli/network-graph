@@ -36,8 +36,9 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Upload entire repository
-          path: './frontend/mock'
+          # The committed build output. `npm run build` writes it, and it is
+          # tracked on purpose so Pages serves it without a build step here.
+          path: './frontend/dist'
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5

@@ -5,17 +5,60 @@ The UI. React + Vite + TypeScript, rendering the capture document described in
 
 ```
 npm install
-npm run dev      # http://localhost:5173
-npm run build    # the type check, not just the bundle
-npm run test     # vitest
+npm run dev          # http://localhost:5173, /api proxied to the backend
+npm run build        # the type check, not just the bundle
+npm run test         # vitest
 ```
 
-## What is here right now
+`dist/` is committed, not ignored: GitHub Pages serves it straight from the
+repository with no build step in CI. So a change that should reach the
+published page needs `npm run build` run and the output committed alongside
+it.
 
-Stage 1 of three. Everything renders from a mock document; there is no backend
-yet. The upload control accepts a `.json` capture document and renders it for
-real, and recognises a `.pcap`/`.pcapng` but says plainly that dissecting one
-needs `tshark`, which lives in the backend.
+The graph, the panel and `.json` uploads need no server. Dissecting a capture
+does, so for that:
+
+```
+docker compose up --build    # from the repo root; frontend on :5173
+```
+
+## Talking to the backend
+
+Everything goes through `@/api/client`, and there are exactly two ways in.
+
+| File picked | What happens |
+| --- | --- |
+| `.json` | Parsed and validated **in the browser**. No server involved. |
+| `.pcap`, `.pcapng` | Uploaded to `POST /captures`; the backend dissects it. |
+
+Requests go to `VITE_API_BASE_URL`, defaulting to `/api`, which Vite's dev
+server proxies to the backend. That makes every request same-origin, so local
+development involves no CORS at all — `settings.cors_origins` on the backend
+exists only for a deployment where a browser calls the API directly.
+
+**Uploads use `XMLHttpRequest`, not `fetch`.** The one and only reason is that
+`fetch` cannot report upload progress, and a multi-gigabyte capture with no
+progress bar is indistinguishable from a hung browser.
+
+**Everything the backend returns still goes through `parseCaptureDocument`.**
+That is not paranoia about the network. `app/schemas/graph.py` and
+`@/types/graph.ts` are one contract in two languages, and a drift between them
+is exactly the bug worth catching at the boundary rather than three components
+deep as a `NaN`.
+
+### No backend is a supported state
+
+The build published to GitHub Pages from `dist/` has no backend behind it, so
+"nothing is answering" is a normal condition rather than a failure:
+
+- The health strip says **No backend** and offers a retry.
+- The sample renders, and `.json` uploads still work.
+- Picking a capture file is refused up front with what to do about it, rather
+  than failing halfway through an upload as an opaque network error.
+
+A backend that answers `/health` but reports `tshark_available: false` is
+treated differently — that is a broken deployment, and it warns, because it
+would otherwise look healthy right up until the first upload failed.
 
 ## The picture
 
@@ -110,11 +153,15 @@ These are in [../CLAUDE.md](../CLAUDE.md) in full. The short version:
 
 ```
 src/
-  types/graph.ts     transcription of ../README.md. Types only.
+  types/             graph.ts and health.ts, mirroring the backend. Types only.
   lib/               pure: scales, ring geometry, formatting. No React.
   hooks/             useForceLayout -- the simulation and the drag
-  api/               the mock document, and the parse boundary
+                     useHealth     -- whether a backend is there
+  api/               client.ts (the only place this app fetches), parse.ts
+                     (the boundary), mock.ts (the sample document)
   components/        one per file, named for the file
+dist/                the build GitHub Pages serves. Committed, and written by
+                     `npm run build`; never edited by hand.
 ```
 
 Imports are absolute through `@/`, which is declared twice: `paths` in
@@ -125,6 +172,13 @@ have drifted.
 ## Findings against the specs
 
 Recorded rather than papered over:
+
+- The backend serialises `hostname_confidence` and `is_local_basis` as JSON
+  `null` rather than omitting them, so typing them `?: number` and testing
+  `!== undefined` let a `null` through and rendered it as `0%`. They are now
+  `?: number | null` with `!= null` checks. Worth deciding once whether the
+  wire format omits absent inferences or sends null, because the two ask for
+  different types.
 
 - `CLAUDE.md` prescribes `"baseUrl": "."` alongside `paths`. TypeScript 7
   removed `baseUrl` (`error TS5102`), and `paths` is now resolved relative to
